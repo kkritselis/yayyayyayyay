@@ -147,7 +147,7 @@
         }
         #nextBtn, #solveBtn { 
             padding: 10px 20px; 
-            background: #0f0; 
+            background: #0ff; 
             color: #000; 
             border: none; 
             border-radius: 6px; 
@@ -158,7 +158,7 @@
             min-width: 120px;
         }
         #nextBtn:hover, #solveBtn:hover { 
-            background: #7f7;
+            background: #7ff;
         }
         #historyPanel {
             background: #222;
@@ -238,6 +238,68 @@
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        .victory-modal {
+            background: #222;
+            border: 3px solid #0ff;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            max-width: 500px;
+            margin: 20px;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        .victory-title {
+            font-size: clamp(24px, 5vw, 32px);
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, #0ff, #f0f);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: bold;
+        }
+        
+        .victory-message {
+            font-size: clamp(18px, 4vw, 24px);
+            margin-bottom: 30px;
+            color: #fff;
+            line-height: 1.4;
+        }
+        
+        .victory-btn {
+            padding: 15px 30px;
+            background: linear-gradient(45deg, #0ff, #f0f);
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .victory-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 255, 0.4);
+        }
 
         @media (max-width: 600px) {
             #container {
@@ -303,11 +365,7 @@
   <div class="legend">
     <div class="legend-item">
       <div class="feedback-dot correct-place"></div>
-      <span>Correct position</span>
-    </div>
-    <div class="legend-item">
-      <div class="feedback-dot correct-wrong-place"></div>
-      <span>Correct circle, wrong position</span>
+      <span>Correct circle</span>
     </div>
     <div class="legend-item">
       <div class="feedback-dot wrong"></div>
@@ -329,7 +387,7 @@ const levels = [
   {
     "name": "Ellipse",
     "target": [
-      { "id": "c1", "color": "#0f0", "r": 80, "f": 1, "p": 0 },
+      { "id": "c1", "color": "#0ff", "r": 80, "f": 1, "p": 0 },
       { "id": "c2", "color": "#ff0", "r": 40, "f": -1, "p": 1.2 }
     ],
     "decoys": [
@@ -351,7 +409,7 @@ const levels = [
   {
     "name": "Trefoil Knot",
     "target": [
-      { "id": "c1", "color": "#0f0", "r": 70, "f": 1, "p": 0 },
+      { "id": "c1", "color": "#0ff", "r": 70, "f": 1, "p": 0 },
       { "id": "c2", "color": "#f0f", "r": 40, "f": 3, "p": 1.2 },
       { "id": "c3", "color": "#ff0", "r": 20, "f": -2, "p": 0.6 }
     ],
@@ -369,14 +427,14 @@ const levels = [
     ],
     "decoys": [
       { "id": "d1", "color": "#0ff", "r": 40, "f": -3, "p": 1.0 },
-      { "id": "d2", "color": "#0f0", "r": 30, "f": -4, "p": 1.5 }
+      { "id": "d2", "color": "#0ff", "r": 30, "f": -4, "p": 1.5 }
     ]
   },
   {
     "name": "Star (5-point)",
     "target": [
       { "id": "c1", "color": "#ff0", "r": 70, "f": 5, "p": 0 },
-      { "id": "c2", "color": "#0f0", "r": 30, "f": -4, "p": 1.5 }
+      { "id": "c2", "color": "#0ff", "r": 30, "f": -4, "p": 1.5 }
     ],
     "decoys": [
       { "id": "d1", "color": "#f44", "r": 50, "f": 2, "p": 0.7 },
@@ -386,7 +444,7 @@ const levels = [
   {
     "name": "Clover (3 leaves)",
     "target": [
-      { "id": "c1", "color": "#0f0", "r": 50, "f": 3, "p": 0 },
+      { "id": "c1", "color": "#0ff", "r": 50, "f": 3, "p": 0 },
       { "id": "c2", "color": "#fa0", "r": 20, "f": -2, "p": 1.2 }
     ],
     "decoys": [
@@ -408,7 +466,7 @@ const levels = [
   {
     "name": "Infinity Symbol",
     "target": [
-      { "id": "c1", "color": "#0f0", "r": 70, "f": 1, "p": 0 },
+      { "id": "c1", "color": "#0ff", "r": 70, "f": 1, "p": 0 },
       { "id": "c2", "color": "#ff0", "r": 30, "f": 2, "p": 1.5 }
     ],
     "decoys": [
@@ -431,7 +489,7 @@ const levels = [
   {
     "name": "Complex Flower",
     "target": [
-      { "id": "c40", "color": "#0f0", "r": 60, "f": 3, "p": 0 },
+      { "id": "c40", "color": "#0ff", "r": 60, "f": 3, "p": 0 },
       { "id": "c41", "color": "#ff0", "r": 30, "f": 5, "p": 1.0 },
       { "id": "c42", "color": "#0ff", "r": 20, "f": -4, "p": 2.1 },
       { "id": "c43", "color": "#f0f", "r": 10, "f": 7, "p": 0.5 }
@@ -444,7 +502,7 @@ const levels = [
   {
     "name": "Celtic Knot",
     "target": [
-      { "id": "c48", "color": "#0f0", "r": 50, "f": 2, "p": 0 },
+      { "id": "c48", "color": "#0ff", "r": 50, "f": 2, "p": 0 },
       { "id": "c49", "color": "#ff0", "r": 35, "f": -3, "p": 1.7 },
       { "id": "c50", "color": "#f0f", "r": 25, "f": 4, "p": 3.1 },
       { "id": "c51", "color": "#0ff", "r": 15, "f": -5, "p": 0.8 }
@@ -457,7 +515,7 @@ const levels = [
   {
     "name": "Orbit Rings",
     "target": [
-      { "id": "c52", "color": "#0f0", "r": 70, "f": 1, "p": 0 },
+      { "id": "c52", "color": "#0ff", "r": 70, "f": 1, "p": 0 },
       { "id": "c53", "color": "#ff0", "r": 50, "f": -2, "p": 1.3 },
       { "id": "c54", "color": "#0ff", "r": 30, "f": 3, "p": 2.2 },
       { "id": "c55", "color": "#f0f", "r": 15, "f": -4, "p": 0.5 }
@@ -470,14 +528,14 @@ const levels = [
   {
     "name": "Four Leaf Clover",
     "target": [
-      { "id": "c56", "color": "#0f0", "r": 50, "f": 4, "p": 0 },
+      { "id": "c56", "color": "#0ff", "r": 50, "f": 4, "p": 0 },
       { "id": "c57", "color": "#fa0", "r": 30, "f": -3, "p": 1.2 },
       { "id": "c58", "color": "#0ff", "r": 20, "f": 5, "p": 2.5 },
       { "id": "c59", "color": "#f0f", "r": 10, "f": -6, "p": 0.7 }
     ],
     "decoys": [
       { "id": "d44", "color": "#f44", "r": 25, "f": 3, "p": 2.1 },
-      { "id": "c63", "color": "#0f0", "r": 15, "f": -4, "p": 0.4 }
+      { "id": "c63", "color": "#0ff", "r": 15, "f": -4, "p": 0.4 }
     ]
   },
   {
@@ -486,11 +544,11 @@ const levels = [
       { "id": "c60", "color": "#ff0", "r": 60, "f": 7, "p": 0 },
       { "id": "c61", "color": "#0ff", "r": 30, "f": -6, "p": 1.1 },
       { "id": "c62", "color": "#f0f", "r": 20, "f": 5, "p": 2.8 },
-      { "id": "c63", "color": "#0f0", "r": 15, "f": -4, "p": 0.4 }
+      { "id": "c63", "color": "#0ff", "r": 15, "f": -4, "p": 0.4 }
     ],
     "decoys": [
       { "id": "d45", "color": "#fa0", "r": 25, "f": 2, "p": 1.3 },
-      { "id": "c67", "color": "#0f0", "r": 10, "f": 4, "p": 0.9 }
+      { "id": "c67", "color": "#0ff", "r": 10, "f": 4, "p": 0.9 }
     ]
   },
   {
@@ -499,11 +557,11 @@ const levels = [
       { "id": "c64", "color": "#0ff", "r": 55, "f": 1, "p": 0 },
       { "id": "c65", "color": "#f0f", "r": 35, "f": 2, "p": 1.7 },
       { "id": "c66", "color": "#ff0", "r": 25, "f": -3, "p": 2.9 },
-      { "id": "c67", "color": "#0f0", "r": 10, "f": 4, "p": 0.9 }
+      { "id": "c67", "color": "#0ff", "r": 10, "f": 4, "p": 0.9 }
     ],
     "decoys": [
       { "id": "d46", "color": "#4af", "r": 20, "f": -5, "p": 0.6 },
-      { "id": "c71", "color": "#0f0", "r": 10, "f": -5, "p": 0.3 }
+      { "id": "c71", "color": "#0ff", "r": 10, "f": -5, "p": 0.3 }
     ]
   },
   {
@@ -512,7 +570,7 @@ const levels = [
       { "id": "c68", "color": "#ff0", "r": 70, "f": 8, "p": 0 },
       { "id": "c69", "color": "#fa0", "r": 40, "f": -7, "p": 1.4 },
       { "id": "c70", "color": "#f0f", "r": 20, "f": 6, "p": 2.3 },
-      { "id": "c71", "color": "#0f0", "r": 10, "f": -5, "p": 0.3 }
+      { "id": "c71", "color": "#0ff", "r": 10, "f": -5, "p": 0.3 }
     ],
     "decoys": [
       { "id": "d47", "color": "#0ff", "r": 25, "f": 3, "p": 2.0 },
@@ -522,14 +580,14 @@ const levels = [
   {
     "name": "Entangled Loops",
     "target": [
-      { "id": "c72", "color": "#0f0", "r": 65, "f": 2, "p": 0 },
+      { "id": "c72", "color": "#0ff", "r": 65, "f": 2, "p": 0 },
       { "id": "c73", "color": "#ff0", "r": 40, "f": -3, "p": 1.6 },
       { "id": "c74", "color": "#f0f", "r": 20, "f": 4, "p": 2.7 },
       { "id": "c75", "color": "#0ff", "r": 10, "f": -5, "p": 0.8 }
     ],
     "decoys": [
       { "id": "d48", "color": "#fa0", "r": 30, "f": 3, "p": 1.2 },
-      { "id": "c79", "color": "#0f0", "r": 10, "f": 4, "p": 0.5 }
+      { "id": "c79", "color": "#0ff", "r": 10, "f": 4, "p": 0.5 }
     ]
   },
   {
@@ -538,7 +596,7 @@ const levels = [
       { "id": "c76", "color": "#0ff", "r": 60, "f": 1, "p": 0 },
       { "id": "c77", "color": "#f0f", "r": 40, "f": 2, "p": 1.3 },
       { "id": "c78", "color": "#ff0", "r": 20, "f": -3, "p": 2.5 },
-      { "id": "c79", "color": "#0f0", "r": 10, "f": 4, "p": 0.5 }
+      { "id": "c79", "color": "#0ff", "r": 10, "f": 4, "p": 0.5 }
     ],
     "decoys": [
       { "id": "d49", "color": "#f44", "r": 25, "f": -2, "p": 1.5 },
@@ -621,30 +679,56 @@ function loadLevel(n) {
       const center = size / 2;
       const scale = isMobile ? 0.2 : 0.4; // Adjust scale for mobile
       
+      // Initialize trail
+      let trail = [];
+      const trailLength = 30; // Shorter trail for previews
+      
       const animate = () => {
         ctx.clearRect(0, 0, size, size);
         ctx.save();
         ctx.translate(center, center);
         
         // Draw orbit path
-        ctx.strokeStyle = "rgba(255,255,255,0.2)";
+        ctx.strokeStyle = "rgba(128,128,128,0.2)";
+        ctx.lineWidth = 1;
         ctx.beginPath();
-        for (let i = 0; i < 30; i++) {
-          const angle = (i / 30) * Math.PI * 2;
-          const x = c.r * scale * Math.cos(c.f * angle + c.p);
-          const y = c.r * scale * Math.sin(c.f * angle + c.p);
-          if (i === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
+        ctx.arc(0, 0, c.r * scale, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Draw moving point and connecting line
+        const x = c.r * scale * Math.cos(c.f * t + c.p);
+        const y = c.r * scale * Math.sin(c.f * t + c.p);
+        
+        // Add point to trail
+        trail.push({ x, y, t });
+        if (trail.length > trailLength) {
+          trail.shift();
         }
-        ctx.closePath();
+        
+        // Draw trail
+        if (trail.length > 1) {
+          ctx.strokeStyle = c.color + "60"; // More transparent for previews
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(trail[0].x, trail[0].y);
+          for (let i = 1; i < trail.length; i++) {
+            ctx.lineTo(trail[i].x, trail[i].y);
+          }
+          ctx.stroke();
+        }
+        
+        // Draw connecting line
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(x, y);
         ctx.stroke();
         
         // Draw moving point
-              const x = c.r * scale * Math.cos(c.f * t + c.p);
-      const y = c.r * scale * Math.sin(c.f * t + c.p);
         ctx.fillStyle = c.color;
         ctx.beginPath();
-        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.arc(x, y, 3, 0, Math.PI * 2);
         ctx.fill();
         
         ctx.restore();
@@ -760,54 +844,8 @@ function loadLevel(n) {
     const isMobile = window.innerWidth <= 600;
     canvas.width = isMobile ? 40 : 80;
     canvas.height = isMobile ? 40 : 80;
-    const ctx = canvas.getContext("2d");
     slot.appendChild(canvas);
     
-    let animation = null;
-    let currentCircle = null;
-
-    const startAnimation = (circle) => {
-      if (animation) cancelAnimationFrame(animation);
-      currentCircle = circle;
-      let t = 0;
-      
-      const animate = () => {
-        ctx.clearRect(0, 0, 80, 80);
-        ctx.save();
-        ctx.translate(40, 40);
-        
-        // Draw orbit path
-        ctx.strokeStyle = "rgba(128,128,128,0.2)";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.arc(0, 0, circle.r * 0.4, 0, Math.PI * 2);
-        ctx.stroke();
-        
-        // Draw moving point and connecting line
-        const x = circle.r * 0.4 * Math.cos(circle.f * t + circle.p);
-        const y = circle.r * 0.4 * Math.sin(circle.f * t + circle.p);
-        
-        // Draw connecting line
-        ctx.strokeStyle = "#fff";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(x, y);
-        ctx.stroke();
-        
-        // Draw moving point
-        ctx.fillStyle = circle.color;
-        ctx.beginPath();
-        ctx.arc(x, y, 3, 0, Math.PI * 2);
-        ctx.fill();
-        
-        ctx.restore();
-        t += 0.1;
-        animation = requestAnimationFrame(animate);
-      };
-      animate();
-    };
-
     slot.addEventListener("dragover", e => {
         e.preventDefault();
         slot.classList.add("dragover");
@@ -825,8 +863,77 @@ function loadLevel(n) {
       slot.classList.add("filled");
       slot.style.border = "2px solid #fff";
       
+      // Clear placeholder and show canvas
+      const placeholder = slot.querySelector('.placeholder');
+      if (placeholder) placeholder.style.display = 'none';
+      
+      const canvas = slot.querySelector('canvas');
+      if (canvas) canvas.style.display = 'block';
+      
       const circle = circles.find(c => c.id === id);
-      if (circle) startAnimation(circle);
+      if (circle) {
+        // Start animation for this slot
+        const ctx = canvas.getContext("2d");
+        let t = 0;
+        
+        // Initialize trail for this slot
+        slot.trail = [];
+        slot.trailLength = 50; // Number of trail points to keep
+        
+        const animate = () => {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.save();
+          ctx.translate(canvas.width/2, canvas.height/2);
+          
+          // Draw orbit path
+          ctx.strokeStyle = "rgba(128,128,128,0.2)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(0, 0, circle.r * 0.4, 0, Math.PI * 2);
+          ctx.stroke();
+          
+          // Draw moving point and connecting line
+          const x = circle.r * 0.4 * Math.cos(circle.f * t + circle.p);
+          const y = circle.r * 0.4 * Math.sin(circle.f * t + circle.p);
+          
+          // Add point to trail
+          slot.trail.push({ x, y, t });
+          if (slot.trail.length > slot.trailLength) {
+            slot.trail.shift();
+          }
+          
+          // Draw trail
+          if (slot.trail.length > 1) {
+            ctx.strokeStyle = circle.color + "80"; // Semi-transparent
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(slot.trail[0].x, slot.trail[0].y);
+            for (let i = 1; i < slot.trail.length; i++) {
+              ctx.lineTo(slot.trail[i].x, slot.trail[i].y);
+            }
+            ctx.stroke();
+          }
+          
+          // Draw connecting line
+          ctx.strokeStyle = "#fff";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(x, y);
+          ctx.stroke();
+          
+          // Draw moving point
+          ctx.fillStyle = circle.color;
+          ctx.beginPath();
+          ctx.arc(x, y, 3, 0, Math.PI * 2);
+          ctx.fill();
+          
+          ctx.restore();
+          t += 0.1;
+          slot.animationId = requestAnimationFrame(animate);
+        };
+        animate();
+      }
     });
     
     slotContainer.appendChild(slot);
@@ -885,34 +992,12 @@ function checkAttempt() {
   startDrawing();
 
   const targetIDs = levels[currentLevel].target.map(c => c.id);
-  let correctPosition = 0;
   let correctCircles = 0;
   
-  // Check correct positions first
-  activeIDs.forEach((id, i) => {
-    if (id === targetIDs[i]) {
-      correctPosition++;
-    }
-  });
-  
-  // Check correct circles (including those in wrong positions)
-  const remainingTarget = [...targetIDs];
-  const remainingActive = [...activeIDs];
-  
-  activeIDs.forEach((id, i) => {
-    if (id === targetIDs[i]) {
-      // Remove matches we already counted
-      remainingTarget.splice(remainingTarget.indexOf(id), 1);
-      remainingActive.splice(remainingActive.indexOf(id), 1);
-    }
-  });
-  
-  // Check remaining for correct circles in wrong positions
-  remainingActive.forEach(id => {
-    const targetIndex = remainingTarget.indexOf(id);
-    if (targetIndex !== -1) {
+  // Check for correct circles (order doesn't matter)
+  activeIDs.forEach(id => {
+    if (targetIDs.includes(id)) {
       correctCircles++;
-      remainingTarget.splice(targetIndex, 1);
     }
   });
 
@@ -920,9 +1005,8 @@ function checkAttempt() {
   const attempt = {
     circles: activeIDs.map(id => circles.find(c => c.id === id)),
     feedback: {
-      correctPosition,
       correctCircles,
-      wrong: targetCount - correctPosition - correctCircles
+      wrong: targetCount - correctCircles
     }
   };
   attempts.push(attempt);
@@ -947,17 +1031,10 @@ function checkAttempt() {
   const feedbackDiv = document.createElement('div');
   feedbackDiv.className = 'feedback-dots';
   
-  // Correct position dots
-  for (let i = 0; i < attempt.feedback.correctPosition; i++) {
-    const dot = document.createElement('div');
-    dot.className = 'feedback-dot correct-place';
-    feedbackDiv.appendChild(dot);
-  }
-  
-  // Correct circle wrong position dots
+  // Correct circle dots
   for (let i = 0; i < attempt.feedback.correctCircles; i++) {
     const dot = document.createElement('div');
-    dot.className = 'feedback-dot correct-wrong-place';
+    dot.className = 'feedback-dot correct-place';
     feedbackDiv.appendChild(dot);
   }
   
@@ -971,14 +1048,14 @@ function checkAttempt() {
   attemptDiv.appendChild(feedbackDiv);
   historyDiv.insertBefore(attemptDiv, historyDiv.firstChild);
 
-  showMessage(`Attempt ${attempts.length}: ${correctPosition} correct, ${correctCircles} misplaced`);
+  showMessage(`Attempt ${attempts.length}: ${correctCircles} correct circles`);
   
-  if (correctPosition === targetCount) {
+  if (correctCircles === targetCount) {
     triggerVictory();
   }
 
   // Handle incorrect solution
-  if (correctPosition !== targetCount) {
+  if (correctCircles !== targetCount) {
     // Replace check button with try again button
     const buttonContainer = document.getElementById('buttonContainer');
     const checkBtn = document.getElementById('checkBtn');
@@ -991,6 +1068,12 @@ function checkAttempt() {
       const handleTryAgain = () => {
         // Clear slots
         activeSlots.forEach(slot => {
+          // Stop any existing animation
+          if (slot.animationId) {
+            cancelAnimationFrame(slot.animationId);
+            slot.animationId = null;
+          }
+          
           // Clear the slot completely
           slot.innerHTML = '';
           slot.classList.remove('filled');
@@ -1002,6 +1085,13 @@ function checkAttempt() {
           placeholder.className = "placeholder";
           placeholder.innerText = "drop";
           slot.appendChild(placeholder);
+          
+          // Recreate canvas for animation
+          const canvas = document.createElement("canvas");
+          const isMobile = window.innerWidth <= 600;
+          canvas.width = isMobile ? 40 : 80;
+          canvas.height = isMobile ? 40 : 80;
+          slot.appendChild(canvas);
         });
         
         // Stop drawing epicycles
@@ -1048,31 +1138,36 @@ function checkAttempt() {
 function triggerVictory() {
   showMessage("🎉 Correct!");
   
-  // Replace check button with next button
-  const buttonContainer = document.getElementById('buttonContainer');
-  const checkBtn = document.getElementById('checkBtn');
-  if (buttonContainer && checkBtn) {
-    const nextBtn = document.createElement("button");
-    nextBtn.innerText = "Next Level";
-    nextBtn.style.cssText = "padding: 10px 20px; background: #0f0; color: #000; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; width: 100%; max-width: 800px;";
-    const handleNextLevel = () => {
-      currentLevel++;
-      if (currentLevel >= levels.length) currentLevel = 0;
-      loadLevel(currentLevel);
-    };
-    
-    nextBtn.addEventListener("click", handleNextLevel);
-    nextBtn.addEventListener("touchend", (e) => {
-      e.preventDefault();
-      handleNextLevel();
-    });
-    
-    // Animate button transition
-    checkBtn.style.transition = "opacity 0.3s";
-    checkBtn.style.opacity = "0";
-    setTimeout(() => {
-      buttonContainer.replaceChild(nextBtn, checkBtn);
-    }, 300);
+  // Check if this was the last level
+  if (currentLevel === levels.length - 1) {
+    // Show victory modal
+    showVictoryModal();
+  } else {
+    // Replace check button with next button
+    const buttonContainer = document.getElementById('buttonContainer');
+    const checkBtn = document.getElementById('checkBtn');
+    if (buttonContainer && checkBtn) {
+      const nextBtn = document.createElement("button");
+      nextBtn.innerText = "Next Level";
+      nextBtn.style.cssText = "padding: 10px 20px; background: #0ff; color: #000; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; width: 100%; max-width: 800px;";
+      const handleNextLevel = () => {
+        currentLevel++;
+        loadLevel(currentLevel);
+      };
+      
+      nextBtn.addEventListener("click", handleNextLevel);
+      nextBtn.addEventListener("touchend", (e) => {
+        e.preventDefault();
+        handleNextLevel();
+      });
+      
+      // Animate button transition
+      checkBtn.style.transition = "opacity 0.3s";
+      checkBtn.style.opacity = "0";
+      setTimeout(() => {
+        buttonContainer.replaceChild(nextBtn, checkBtn);
+      }, 300);
+    }
   }
   
   solveBtn.style.display = "none"; // Hide solve when already solved
@@ -1148,6 +1243,12 @@ function draw() {
     }
   });
 
+  // Initialize main trail if not exists
+  if (!window.mainTrail) {
+    window.mainTrail = [];
+    window.mainTrailLength = 200; // Longer trail for main canvas
+  }
+  
   let pos = { x: 0, y: 0 };
   active.forEach(c => {
     // Draw orbit path
@@ -1176,13 +1277,38 @@ function draw() {
 
     pos = next;
   });
+  
+  // Add final position to main trail
+  window.mainTrail.push({ x: pos.x, y: pos.y, t });
+  if (window.mainTrail.length > window.mainTrailLength) {
+    window.mainTrail.shift();
+  }
+  
+  // Draw main trail
+  if (window.mainTrail.length > 1) {
+    // Check if solution is correct
+    const targetIDs = levels[currentLevel].target.map(c => c.id);
+    const activeIDs = active.map(c => c.id);
+    const correctCircles = activeIDs.filter(id => targetIDs.includes(id)).length;
+    const isCorrect = correctCircles === targetIDs.length;
+    
+    // Draw trail with appropriate color
+    ctx.strokeStyle = isCorrect ? "rgba(0,255,255,0.8)" : "rgba(255,100,100,0.8)";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(window.mainTrail[0].x, window.mainTrail[0].y);
+    for (let i = 1; i < window.mainTrail.length; i++) {
+      ctx.lineTo(window.mainTrail[i].x, window.mainTrail[i].y);
+    }
+    ctx.stroke();
+  }
 
   ctx.restore();
   t += 0.01;
 
   // ✅ Victory Glow
   if (glowTimer > 0) {
-    canvas.style.boxShadow = "0 0 20px 5px #0f0";
+    canvas.style.boxShadow = "0 0 20px 5px #0ff";
     glowTimer--;
     if (glowTimer === 0) canvas.style.boxShadow = "none";
   }
@@ -1197,6 +1323,8 @@ let drawAnimationId = null;
 function startDrawing() {
   if (!isDrawing) {
     isDrawing = true;
+    // Clear main trail when starting to draw
+    window.mainTrail = [];
     draw();
   }
 }
@@ -1207,8 +1335,40 @@ function stopDrawing() {
     cancelAnimationFrame(drawAnimationId);
     drawAnimationId = null;
   }
+  // Clear main trail when stopping
+  window.mainTrail = [];
   // Draw just the target shape
   drawTargetShape();
+}
+
+function showVictoryModal() {
+  // Create modal overlay
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  
+  // Create modal content
+  const modal = document.createElement('div');
+  modal.className = 'victory-modal';
+  
+  modal.innerHTML = `
+    <div class="victory-title">🎉 Congratulations! 🎉</div>
+    <div class="victory-message">
+      You've attained the Rank of<br>
+      <strong>Loop Master!</strong><br><br>
+      You've mastered the art of epicycles and can now create any shape with the power of rotating circles!
+    </div>
+    <a href="index.html" class="victory-btn">🏠 Return Home</a>
+  `;
+  
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  
+  // Add click outside to close (optional)
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      overlay.remove();
+    }
+  });
 }
 
 loadLevel(0);
