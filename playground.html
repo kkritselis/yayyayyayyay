@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Playground - Yay! Yay! Yay! Yay!</title>
+    <style>
+        body { 
+            background: #111; 
+            color: #fff; 
+            font-family: sans-serif; 
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto 40px auto;
+        }
+        
+        .home-btn {
+            padding: 10px 20px;
+            background: #333;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        
+        .logo {
+            width: 400px;
+            height: 40px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            gap: 40px;
+            flex-wrap: wrap;
+        }
+        
+        .canvas-section {
+            flex: 1;
+            min-width: 400px;
+        }
+        
+        .controls-section {
+            flex: 1;
+            min-width: 300px;
+        }
+        
+        h1 {
+            font-size: clamp(24px, 5vw, 32px);
+            text-align: center;
+            margin-bottom: 30px;
+            background: linear-gradient(45deg, #f0f, #f00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .canvas-container {
+            background: #000;
+            border: 4px solid #444;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        #playgroundCanvas {
+            border: 2px solid #666;
+            border-radius: 8px;
+        }
+        
+        .controls-panel {
+            background: #222;
+            border-radius: 12px;
+            padding: 20px;
+            border-left: 4px solid #f0f;
+        }
+        
+        .add-circle-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(45deg, #f0f, #f00);
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        
+        .add-circle-btn:hover {
+            opacity: 0.9;
+        }
+        
+        .circle-card {
+            background: #333;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            border: 1px solid #555;
+            position: relative;
+        }
+        
+        .circle-card h3 {
+            margin: 0 0 15px 0;
+            color: #f0f;
+        }
+        
+        .remove-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #f44;
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .remove-btn:hover {
+            background: #f66;
+        }
+        
+        .slider-group {
+            margin: 10px 0;
+        }
+        
+        .slider-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .slider {
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: #555;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #f0f;
+            cursor: pointer;
+        }
+        
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #f0f;
+            cursor: pointer;
+            border: none;
+        }
+        
+        .value-display {
+            min-width: 50px;
+            text-align: right;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        
+        .color-picker {
+            width: 40px;
+            height: 30px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        @media (max-width: 800px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .canvas-section, .controls-section {
+                min-width: auto;
+            }
+            
+            .logo {
+                width: 200px;
+                height: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 800px; margin-bottom: 20px;">
+        <a href="index.html">
+            <img src="logo_sub.png" alt="Yay! Yay! Yay! Yay!" style="width: 100%;">
+        </a>
+    </div>
+    
+    <div class="container">
+        <div class="canvas-section">
+            <h1>🎨 Playground</h1>
+            <div class="canvas-container">
+                <canvas id="playgroundCanvas" width="400" height="400"></canvas>
+            </div>
+        </div>
+        
+        <div class="controls-section">
+            <div class="controls-panel">
+                <button class="add-circle-btn" onclick="addCircle()">➕ Add Circle</button>
+                <div id="circleList">
+                    <!-- Circle cards will be added here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('playgroundCanvas');
+        const ctx = canvas.getContext('2d');
+        const circleList = document.getElementById('circleList');
+        
+        let circles = [];
+        let t = 0;
+        let animationId;
+        
+        function addCircle() {
+            const circle = {
+                id: Date.now(),
+                r: 50,
+                f: 1,
+                p: 0,
+                color: '#' + Math.floor(Math.random()*16777215).toString(16)
+            };
+            
+            circles.push(circle);
+            createCircleCard(circle);
+            updateAnimation();
+        }
+        
+        function removeCircle(id) {
+            circles = circles.filter(c => c.id !== id);
+            
+            // Remove the card element from the DOM
+            const cards = document.querySelectorAll('.circle-card');
+            cards.forEach(card => {
+                const removeBtn = card.querySelector('.remove-btn');
+                if (removeBtn && removeBtn.getAttribute('onclick').includes(id.toString())) {
+                    card.remove();
+                }
+            });
+            
+            updateAnimation();
+        }
+        
+        function createCircleCard(circle) {
+            const card = document.createElement('div');
+            card.className = 'circle-card';
+            card.innerHTML = `
+                <div class="card-row1">
+                    <h3 class="card-title">Circle ${circles.indexOf(circle) + 1}</h3>
+                    <span class="color-label">Color:</span>
+                    <input type="color" class="color-picker" value="${circle.color}" 
+                           onchange="updateCircle(${circle.id}, 'color', this.value)">
+                    <button class="remove-btn" onclick="removeCircle(${circle.id})">×</button>
+                </div>
+                <div class="card-row2">
+                    <div class="slider-col">
+                        <label>Radius (r)<br><span class="value-display">${circle.r}</span></label>
+                        <input type="range" class="slider" min="10" max="100" value="${circle.r}"
+                               oninput="updateCircle(${circle.id}, 'r', parseFloat(this.value))">
+                    </div>
+                    <div class="slider-col">
+                        <label>Frequency (f)<br><span class="value-display">${circle.f}</span></label>
+                        <input type="range" class="slider" min="-3" max="3" step="0.05" value="${circle.f}"
+                               oninput="updateCircle(${circle.id}, 'f', parseFloat(this.value))">
+                    </div>
+                    <div class="slider-col">
+                        <label>Phase (p)<br><span class="value-display">${circle.p.toFixed(2)}</span></label>
+                        <input type="range" class="slider" min="0" max="6.28" step="0.1" value="${circle.p}"
+                               oninput="updateCircle(${circle.id}, 'p', parseFloat(this.value))">
+                    </div>
+                </div>
+            `;
+            circleList.appendChild(card);
+        }
+
+        // Add CSS for compact two-row card layout
+        const style = document.createElement('style');
+        style.innerHTML = `
+        .circle-card { padding: 10px; margin: 10px 0; }
+        .card-row1 { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+        .card-title { margin: 0; font-size: 1em; color: #f0f; font-weight: bold; }
+        .color-label { font-size: 0.95em; color: #ccc; margin-left: 8px; }
+        .color-picker { margin-left: 4px; margin-right: 8px; }
+        .remove-btn { margin-left: auto; }
+        .card-row2 { display: flex; gap: 10px; }
+        .slider-col { flex: 1; min-width: 0; }
+        .slider-col label { display: block; font-size: 0.95em; margin-bottom: 2px; text-align: center; }
+        .slider { width: 100%; }
+        .value-display { display: block; font-family: monospace; font-size: 0.95em; color: #f0f; }
+        `;
+        document.head.appendChild(style);
+        
+        function updateCircle(id, property, value) {
+            const circle = circles.find(c => c.id === id);
+            if (circle) {
+                circle[property] = value;
+                updateAnimation();
+                
+                // Update the value display
+                const card = event.target.closest('.circle-card');
+                const labels = card.querySelectorAll('label');
+                for (const label of labels) {
+                    // Special case for radius since 'r' is too short for reliable text matching
+                    if ((property === 'r' && label.textContent.includes('Radius')) ||
+                        (property !== 'r' && label.textContent.toLowerCase().includes(property.toLowerCase()))) {
+                        const valueDisplay = label.querySelector('.value-display');
+                        if (valueDisplay) {
+                            valueDisplay.textContent = typeof value === 'number' ? value.toFixed(2) : value;
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        
+        function updateAnimation() {
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+            animate();
+        }
+        
+        function animate() {
+            ctx.clearRect(0, 0, 400, 400);
+            ctx.save();
+            ctx.translate(200, 200);
+            
+            if (circles.length === 0) {
+                // Draw instructions when no circles
+                ctx.fillStyle = "#666";
+                ctx.font = "16px sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillText("Add circles to see the pattern!", 0, 0);
+                ctx.restore();
+                return;
+            }
+            
+            // Draw the combined pattern
+            ctx.strokeStyle = "#fff";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            
+            // Pre-compute points for the pattern
+            const points = [];
+            const steps = 3000; // More points for smoother curves
+
+            // Determine the period to draw
+            const allInts = circles.length > 0 && circles.every(c => Number.isInteger(c.f));
+            const cycles = allInts ? 1 : 20; // 1 for integer frequencies, 20 for non-integer
+            const maxAngle = Math.PI * 2 * cycles;
+
+            for (let i = 0; i <= steps; i++) {
+                const angle = (i / steps) * maxAngle;
+                let x = 0, y = 0;
+                circles.forEach(circle => {
+                    x += circle.r * Math.cos(circle.f * angle + circle.p);
+                    y += circle.r * Math.sin(circle.f * angle + circle.p);
+                });
+                points.push({ x, y });
+            }
+
+            // Draw the pattern using the pre-computed points
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            points.forEach(p => ctx.lineTo(p.x, p.y));
+            ctx.stroke();
+            
+            // Draw chained epicycles
+            let pos = { x: 0, y: 0 };
+            circles.forEach((circle, index) => {
+                // Draw orbit path around current position
+                ctx.strokeStyle = circle.color + "40";
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, circle.r, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // Calculate next position
+                const nextX = pos.x + circle.r * Math.cos(circle.f * t + circle.p);
+                const nextY = pos.y + circle.r * Math.sin(circle.f * t + circle.p);
+                
+                // Draw connecting line
+                ctx.strokeStyle = "#fff";
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(pos.x, pos.y);
+                ctx.lineTo(nextX, nextY);
+                ctx.stroke();
+                
+                // Draw moving point
+                ctx.fillStyle = circle.color;
+                ctx.beginPath();
+                ctx.arc(nextX, nextY, 4, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Update position for next circle
+                pos = { x: nextX, y: nextY };
+            });
+            
+            ctx.restore();
+            
+            t += 0.02;
+            animationId = requestAnimationFrame(animate);
+        }
+        
+        // Start animation
+        animate();
+    </script>
+</body>
+</html> 

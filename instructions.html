@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instructions - Yay! Yay! Yay! Yay!</title>
+    <style>
+        body { 
+            background: #111; 
+            color: #fff; 
+            font-family: sans-serif; 
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            max-width: 1000px;
+            margin: 0 auto 40px auto;
+        }
+        
+        .home-btn {
+            padding: 10px 20px;
+            background: #333;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        
+        .logo {
+            width: 400px;
+            height: 40px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            font-size: clamp(24px, 5vw, 32px);
+            text-align: center;
+            margin-bottom: 30px;
+            background: linear-gradient(45deg, #0ff, #00f);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .step {
+            background: #222;
+            border-radius: 12px;
+            padding: 30px;
+            margin: 30px 0;
+            border-left: 4px solid #0ff;
+        }
+        
+        .step h2 {
+            color: #0ff;
+            margin-top: 0;
+        }
+        
+        .demo-container {
+            display: flex;
+            gap: 40px;
+            align-items: center;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        .demo-canvas {
+            background: #000;
+            border: 2px solid #444;
+            border-radius: 8px;
+        }
+        
+        .demo-text {
+            flex: 1;
+            min-width: 300px;
+        }
+        
+        .circle-preview {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .circle-demo {
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            position: relative;
+        }
+        
+        .circle-demo canvas {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .highlight {
+            background: rgba(0,255,255,0.2);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        
+        .tip {
+            background: rgba(255,255,0,0.1);
+            border-left: 4px solid #ff0;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        @media (max-width: 600px) {
+            .demo-container {
+                flex-direction: column;
+                gap: 20px;
+            }
+            
+            .demo-text {
+                min-width: auto;
+            }
+            
+            .logo {
+                width: 200px;
+                height: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 800px; margin-bottom: 20px;">
+        <a href="index.html">
+            <img src="logo_sub.png" alt="Yay! Yay! Yay! Yay!" style="width: 100%;">
+        </a>
+    </div>
+    
+    <div class="container">
+        <h1>How to Play</h1>
+        
+        <div class="step">
+            <h2>🎯 The Goal</h2>
+            <p>You need to recreate the target shape by combining different rotating circles. Each circle has three properties:</p>
+            <ul>
+                <li><span class="highlight">Radius (r)</span>: How big the circle's orbit is</li>
+                <li><span class="highlight">Frequency (f)</span>: How fast and in which direction it rotates</li>
+                <li><span class="highlight">Phase (p)</span>: Where it starts in its rotation</li>
+            </ul>
+        </div>
+        
+        <div class="step">
+            <h2>🔍 Understanding the Target</h2>
+            <div class="demo-container">
+                <canvas id="targetCanvas" class="demo-canvas" width="300" height="300"></canvas>
+                <div class="demo-text">
+                    <p>This is the target shape you need to recreate. It's an ellipse formed by combining two circles in a chain:</p>
+                    <div class="circle-preview">
+                        <div class="circle-demo">
+                            <canvas id="circle1" width="60" height="60"></canvas>
+                        </div>
+                        <div style="flex: 1;">
+                            <strong>Circle 1:</strong> Large green circle (r=80, f=1, p=0)<br>
+                            Starts at the center and creates the main elliptical path
+                        </div>
+                    </div>
+                    <div class="circle-preview">
+                        <div class="circle-demo">
+                            <canvas id="circle2" width="60" height="60"></canvas>
+                        </div>
+                        <div style="flex: 1;">
+                            <strong>Circle 2:</strong> Small yellow circle (r=40, f=-1, p=1.2)<br>
+                            Rotates around Circle 1's position, creating the final shape
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="step">
+            <h2>🎮 The Gameplay</h2>
+            <p>1. <strong>Choose circles:</strong> You'll see animated previews of each circle's motion</p>
+            <p>2. <strong>Drag and drop:</strong> Place the correct circles in the slots</p>
+            <p>3. <strong>Check your solution:</strong> Click "Check Solution" to see how your circles combine</p>
+            <p>4. <strong>Get feedback:</strong> You'll see how many circles are correct and in the right position</p>
+        </div>
+        
+        <div class="step">
+            <h2>🎲 Mastermind-Style Feedback</h2>
+            <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
+                <div style="display: flex; gap: 10px;">
+                    <div style="width: 15px; height: 15px; background: #0f0; border-radius: 50%;"></div>
+                    <span>Correct position</span>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <div style="width: 15px; height: 15px; background: #ff0; border-radius: 50%;"></div>
+                    <span>Correct circle, wrong position</span>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <div style="width: 15px; height: 15px; background: #444; border-radius: 50%;"></div>
+                    <span>Wrong circle</span>
+                </div>
+            </div>
+            <p>Use this feedback to figure out which circles are correct and where they should go!</p>
+        </div>
+        
+        <div class="tip">
+            <strong>💡 Tip:</strong> Start by looking at the target shape. Is it round? Pointy? How many loops does it have? This will help you guess which circles to use!
+        </div>
+        
+        <div style="text-align: center; margin: 40px 0;">
+            <a href="game.html" style="padding: 15px 30px; background: linear-gradient(45deg, #0f0, #ff0); color: #000; text-decoration: none; border-radius: 8px; font-size: 18px; font-weight: bold;">🎮 Start Playing!</a>
+        </div>
+    </div>
+
+    <script>
+        // Animation for the target shape
+        const targetCanvas = document.getElementById('targetCanvas');
+        const targetCtx = targetCanvas.getContext('2d');
+        
+        // Circle 1 animation
+        const circle1Canvas = document.getElementById('circle1');
+        const circle1Ctx = circle1Canvas.getContext('2d');
+        
+        // Circle 2 animation
+        const circle2Canvas = document.getElementById('circle2');
+        const circle2Ctx = circle2Canvas.getContext('2d');
+        
+        let t = 0;
+        
+        function animate() {
+            // Clear canvases
+            targetCtx.clearRect(0, 0, 300, 300);
+            circle1Ctx.clearRect(0, 0, 60, 60);
+            circle2Ctx.clearRect(0, 0, 60, 60);
+            
+            // Draw target shape with chained epicycles
+            targetCtx.save();
+            targetCtx.translate(150, 150);
+            
+            // Draw the complete ellipse path
+            targetCtx.strokeStyle = "#fff";
+            targetCtx.lineWidth = 1;
+            targetCtx.beginPath();
+            
+            for (let i = 0; i < 100; i++) {
+                const angle = (i / 100) * Math.PI * 2;
+                const x = 80 * Math.cos(angle) + 40 * Math.cos(-angle + 1.2);
+                const y = 80 * Math.sin(angle) + 40 * Math.sin(-angle + 1.2);
+                if (i === 0) targetCtx.moveTo(x, y);
+                else targetCtx.lineTo(x, y);
+            }
+            targetCtx.closePath();
+            targetCtx.stroke();
+            
+            // Draw chained epicycles
+            let pos = { x: 0, y: 0 };
+            
+            // Circle 1: rotates around origin
+            const circle1X = 80 * Math.cos(t);
+            const circle1Y = 80 * Math.sin(t);
+            
+            // Draw circle 1 orbit
+            targetCtx.strokeStyle = "rgba(128,128,128,0.2)";
+            targetCtx.lineWidth = 1;
+            targetCtx.beginPath();
+            targetCtx.arc(pos.x, pos.y, 80, 0, Math.PI * 2);
+            targetCtx.stroke();
+            
+            // Draw connecting line to circle 1
+            targetCtx.strokeStyle = "#fff";
+            targetCtx.lineWidth = 2;
+            targetCtx.beginPath();
+            targetCtx.moveTo(pos.x, pos.y);
+            targetCtx.lineTo(circle1X, circle1Y);
+            targetCtx.stroke();
+            
+            // Draw circle 1 point
+            targetCtx.fillStyle = "#0f0";
+            targetCtx.beginPath();
+            targetCtx.arc(circle1X, circle1Y, 3, 0, Math.PI * 2);
+            targetCtx.fill();
+            
+            // Circle 2: rotates around circle 1's position
+            pos = { x: circle1X, y: circle1Y };
+            const circle2X = pos.x + 40 * Math.cos(-t + 1.2);
+            const circle2Y = pos.y + 40 * Math.sin(-t + 1.2);
+            
+            // Draw circle 2 orbit around circle 1
+            targetCtx.strokeStyle = "rgba(128,128,128,0.2)";
+            targetCtx.lineWidth = 1;
+            targetCtx.beginPath();
+            targetCtx.arc(pos.x, pos.y, 40, 0, Math.PI * 2);
+            targetCtx.stroke();
+            
+            // Draw connecting line to circle 2
+            targetCtx.strokeStyle = "#fff";
+            targetCtx.lineWidth = 2;
+            targetCtx.beginPath();
+            targetCtx.moveTo(pos.x, pos.y);
+            targetCtx.lineTo(circle2X, circle2Y);
+            targetCtx.stroke();
+            
+            // Draw circle 2 point (final position)
+            targetCtx.fillStyle = "#ff0";
+            targetCtx.beginPath();
+            targetCtx.arc(circle2X, circle2Y, 3, 0, Math.PI * 2);
+            targetCtx.fill();
+            
+            targetCtx.restore();
+            
+            // Draw circle 1 preview (simplified)
+            circle1Ctx.save();
+            circle1Ctx.translate(30, 30);
+            circle1Ctx.strokeStyle = "rgba(0,255,0,0.3)";
+            circle1Ctx.beginPath();
+            circle1Ctx.arc(0, 0, 20, 0, Math.PI * 2);
+            circle1Ctx.stroke();
+            
+            const x1 = 20 * Math.cos(t);
+            const y1 = 20 * Math.sin(t);
+            circle1Ctx.fillStyle = "#0f0";
+            circle1Ctx.beginPath();
+            circle1Ctx.arc(x1, y1, 3, 0, Math.PI * 2);
+            circle1Ctx.fill();
+            circle1Ctx.restore();
+            
+            // Draw circle 2 preview (simplified)
+            circle2Ctx.save();
+            circle2Ctx.translate(30, 30);
+            circle2Ctx.strokeStyle = "rgba(255,255,0,0.3)";
+            circle2Ctx.beginPath();
+            circle2Ctx.arc(0, 0, 12, 0, Math.PI * 2);
+            circle2Ctx.stroke();
+            
+            const x2 = 12 * Math.cos(-t + 1.2);
+            const y2 = 12 * Math.sin(-t + 1.2);
+            circle2Ctx.fillStyle = "#ff0";
+            circle2Ctx.beginPath();
+            circle2Ctx.arc(x2, y2, 3, 0, Math.PI * 2);
+            circle2Ctx.fill();
+            circle2Ctx.restore();
+            
+            t += 0.02;
+            requestAnimationFrame(animate);
+        }
+        
+        animate();
+    </script>
+</body>
+</html> 
