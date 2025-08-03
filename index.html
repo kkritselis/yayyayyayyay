@@ -4,6 +4,92 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Yay! Yay! Yay! Yay!</title>
+    <script>
+        // Audio context and oscillator management
+        let audioContext;
+        let drumSamples = new Map(); // Map of circle ID to assigned drum sample
+        let audioBuffers = []; // Array to store loaded audio buffers
+        let lastDrumTime = new Map(); // Track last drum hit time to prevent spam
+        window.audioEnabled = true;  // Global audio state
+        
+        // Load drum samples
+        async function loadDrumSamples() {
+            if (!audioContext) return;
+            
+            const sampleFiles = ['1.wav', '2.wav', '3.wav', '4.wav', '5.wav'];
+            
+            for (let i = 0; i < sampleFiles.length; i++) {
+                try {
+                    const response = await fetch(sampleFiles[i]);
+                    const arrayBuffer = await response.arrayBuffer();
+                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    audioBuffers[i] = audioBuffer;
+                    console.log(`Loaded drum sample ${i + 1}`);
+                } catch (error) {
+                    console.error(`Failed to load drum sample ${i + 1}:`, error);
+                }
+            }
+        }
+        
+        // Initialize audio context
+        function initAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                console.log('Audio context created, state:', audioContext.state);
+                // Resume audio context if it's suspended (required for autoplay policies)
+                if (audioContext.state === 'suspended') {
+                    audioContext.resume().then(() => {
+                        console.log('Audio context resumed');
+                    });
+                }
+                // Load drum samples after context is created
+                loadDrumSamples();
+            }
+        }
+        
+        // Create a drum sound for a circle
+        function createDrumSound(circleId, frequency) {
+            if (!audioContext || !window.audioEnabled) return;
+            
+            // Prevent drum spam - only trigger once per 0.3 seconds
+            const now = audioContext.currentTime;
+            const lastHit = lastDrumTime.get(circleId) || 0;
+            if (now - lastHit < 0.3) return;
+            lastDrumTime.set(circleId, now);
+            
+            // Get the assigned drum sample for this circle
+            let sampleIndex = drumSamples.get(circleId);
+            if (sampleIndex === undefined) {
+                // Assign a random sample if none assigned yet
+                sampleIndex = Math.floor(Math.random() * 5);
+                drumSamples.set(circleId, sampleIndex);
+            }
+            
+            // Check if we have the sample loaded
+            if (!audioBuffers[sampleIndex]) return;
+            
+            // Create audio buffer source for the drum sample
+            const drumSource = audioContext.createBufferSource();
+            const drumGain = audioContext.createGain();
+            
+            // Connect drum audio chain
+            drumSource.connect(drumGain);
+            drumGain.connect(audioContext.destination);
+            
+            // Set the buffer to the loaded sample
+            drumSource.buffer = audioBuffers[sampleIndex];
+            
+            // Adjust playback rate based on frequency (optional)
+            const playbackRate = 1.0 + (Math.abs(frequency) - 1) * 0.1; // Slight variation
+            drumSource.playbackRate.setValueAtTime(playbackRate, now);
+            
+            // Set volume
+            drumGain.gain.setValueAtTime(0.4, now);
+            
+            // Start the drum sample
+            drumSource.start(now);
+        }
+    </script>
     <style>
         body { 
             background: #111; 
@@ -266,6 +352,12 @@
                 const nextX = pos.x + circle.r * Math.cos(circle.f * t + circle.p);
                 const nextY = pos.y + circle.r * Math.sin(circle.f * t + circle.p);
                 
+                // Check if circle is in upright position and trigger drum
+                const isUpright = nextY < -150; // Threshold for upright position in demo
+                if (isUpright) {
+                    createDrumSound(index, circle.f);
+                }
+                
                 // Draw connecting line
                 ctx.strokeStyle = "#fff";
                 ctx.lineWidth = 2;
@@ -289,6 +381,9 @@
             t += 0.015;
             requestAnimationFrame(animate);
         }
+        
+        // Initialize audio on page load
+        initAudio();
         
         // Start animation
         animate();
