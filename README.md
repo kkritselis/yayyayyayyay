@@ -1,2 +1,11 @@
 # yayyayyayyay
 A Loopy Puzzle Game
+
+#FFEB3B
+#FF3BE7
+#00E5FF
+#7C4DFF
+#FF9100
+#B0BEC5
+#C158DC
+#1A237E

@@ -59,8 +59,17 @@
             max-width: 400px;
         }
         
+        .button-row {
+            display: flex;
+            gap: 20px;
+        }
+
+        .button-row a {
+            width: 50%;
+        }
+        
         .nav-button {
-            padding: 20px 40px;
+            padding: 20px 20px;
             font-size: clamp(18px, 4vw, 24px);
             border: none;
             border-radius: 12px;
@@ -102,7 +111,7 @@
         @media (max-width: 600px) {
             .logo {
                 width: 100%;
-                max-width: 400px;
+                max-width: 500px;
                 height: auto;
             }
             
@@ -117,7 +126,75 @@
             }
             
             .nav-button {
-                padding: 15px 30px;
+                padding: 15px 15px;
+            }
+        }
+
+        .button-container a {
+            border: 2px solid gold;
+            border-radius: 10px;
+            background: gold;
+            cursor: pointer;
+        }
+        .button-container a:hover {
+            filter: contrast(1.1);
+        }
+        .button-container a:active {
+            filter: contrast(0.9);
+        }
+        .button-container a::before, div::after {
+            content: "";
+            position: absolute;
+            top: -10px;
+            left: -10px;
+            right: -10px;
+            bottom: -10px;
+            border: 2px solid gold;
+            transition: all 0.5s;
+            -webkit-animation: clippath 3s infinite linear;
+                    animation: clippath 3s infinite linear;
+            border-radius: 10px;
+        }
+        .button-container a::after {
+            -webkit-animation: clippath 3s infinite -1.5s linear;
+                    animation: clippath 3s infinite -1.5s linear;
+        }
+
+        @-webkit-keyframes clippath {
+            0%, 100% {
+                -webkit-clip-path: inset(0 0 98% 0);
+                        clip-path: inset(0 0 98% 0);
+            }
+            25% {
+                -webkit-clip-path: inset(0 98% 0 0);
+                        clip-path: inset(0 98% 0 0);
+            }
+            50% {
+                -webkit-clip-path: inset(98% 0 0 0);
+                        clip-path: inset(98% 0 0 0);
+            }
+            75% {
+                -webkit-clip-path: inset(0 0 0 98%);
+                        clip-path: inset(0 0 0 98%);
+            }
+        }
+
+        @keyframes clippath {
+            0%, 100% {
+                -webkit-clip-path: inset(0 0 98% 0);
+                        clip-path: inset(0 0 98% 0);
+            }
+            25% {
+                -webkit-clip-path: inset(0 98% 0 0);
+                        clip-path: inset(0 98% 0 0);
+            }
+            50% {
+                -webkit-clip-path: inset(98% 0 0 0);
+                        clip-path: inset(98% 0 0 0);
+            }
+            75% {
+                -webkit-clip-path: inset(0 0 0 98%);
+                        clip-path: inset(0 0 0 98%);
             }
         }
     </style>
@@ -128,9 +205,11 @@
     <canvas id="demoCanvas" class="demo-canvas" width="400" height="400"></canvas>
     
     <div class="button-container">
-        <a href="instructions.html" class="nav-button instructions-btn">Instructions</a>
         <a href="game.html" class="nav-button game-btn">Game</a>
-        <a href="playground.html" class="nav-button playground-btn">Playground</a>
+        <div class="button-row">
+            <a href="instructions.html" class="nav-button instructions-btn">Instructions</a>
+            <a href="playground.html" class="nav-button playground-btn">Playground</a>
+        </div>
     </div>
 
     <script>
