@@ -29,7 +29,7 @@
                     const arrayBuffer = await response.arrayBuffer();
                     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
                     audioBuffers[i] = audioBuffer;
-                    console.log(`Loaded drum sample ${i + 1}`);
+
                 } catch (error) {
                     console.error(`Failed to load drum sample ${i + 1}:`, error);
                 }
@@ -40,11 +40,11 @@
         function initAudio() {
             if (!audioContext) {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                console.log('Audio context created, state:', audioContext.state);
+
                 // Resume audio context if it's suspended (required for autoplay policies)
                 if (audioContext.state === 'suspended') {
                     audioContext.resume().then(() => {
-                        console.log('Audio context resumed');
+    
                     });
                 }
                 // Load drum samples after context is created
@@ -137,7 +137,7 @@
             oscillator.type = 'sine';
             
             // Debug logging
-            console.log(`Audio updated for circle ${circleId}: freq=${frequency}Hz`);
+
         }
         
         // Update audio volume and frequency based on position (called from animation loop)
@@ -156,7 +156,7 @@
             
             // Debug Y position occasionally
             if (Math.random() < 0.01) { // 1% chance to log
-                console.log(`Circle ${circleId} Y position: ${yPosition.toFixed(1)}, Upright: ${yPosition > 100}`);
+    
             }
             
             // Map X position to frequency scaling: X position as percentage of canvas width
@@ -191,19 +191,18 @@
                 
                 if (isUpright) {
                     createDrumSound(circleId, circleData.f);
-                    console.log(`Drum triggered for circle ${circleId} at X=${circleX.toFixed(1)}, Y=${circleY.toFixed(1)}`);
+    
                 }
             }
             
-            // Update the display values in the card
-            updateCircleDisplay(circleId, yPosition, yPercentage, scaledRadius, xPosition, xPercentage, scaledFrequency);
+
         }
         
         // Update audio for all active circles
         function updateAllAudio(activeCircles) {
             if (!window.audioEnabled) return;
             
-            console.log('Updating audio for', activeCircles.length, 'circles');
+
             
             // Stop audio for all circles first
             oscillators.forEach((osc, id) => {
@@ -219,58 +218,13 @@
             });
         }
         
-        // Update display values for a circle
-        function updateCircleDisplay(circleId, yPosition, yPercentage, scaledRadius, xPosition, xPercentage, scaledFrequency) {
-            const card = document.querySelector(`[onclick*="${circleId}"]`).closest('.circle-card');
-            if (card) {
-                const yPosDisplay = card.querySelector('.y-pos-display');
-                const yPercentDisplay = card.querySelector('.y-percent-display');
-                const scaledRDisplay = card.querySelector('.scaled-r-display');
-                const xPosDisplay = card.querySelector('.x-pos-display');
-                const xPercentDisplay = card.querySelector('.x-percent-display');
-                const scaledFreqDisplay = card.querySelector('.scaled-freq-display');
-                const uprightDisplay = card.querySelector('.upright-display');
-                const drumDisplay = card.querySelector('.drum-display');
-                const sampleDisplay = card.querySelector('.sample-display');
-                
-                if (yPosDisplay) yPosDisplay.textContent = yPosition.toFixed(1);
-                if (yPercentDisplay) yPercentDisplay.textContent = (yPercentage * 100).toFixed(0) + '%';
-                if (scaledRDisplay) scaledRDisplay.textContent = scaledRadius.toFixed(1);
-                if (xPosDisplay) xPosDisplay.textContent = xPosition.toFixed(1);
-                if (xPercentDisplay) xPercentDisplay.textContent = (xPercentage * 100).toFixed(0) + '%';
-                if (scaledFreqDisplay) scaledFreqDisplay.textContent = scaledFrequency.toFixed(0) + 'Hz';
-                
-                // Update upright and drum status based on circle's own position
-                const circleData = circles.find(c => c.id === circleId);
-                let isUpright = false;
-                if (circleData) {
-                    const circleX = circleData.r * Math.cos(circleData.f * t + circleData.p);
-                    const circleY = circleData.r * Math.sin(circleData.f * t + circleData.p);
-                    isUpright = Math.abs(circleX) < 5 && circleY < -15;
-                }
-                if (uprightDisplay) {
-                    uprightDisplay.textContent = isUpright ? 'YES' : 'No';
-                    uprightDisplay.style.color = isUpright ? '#ff0' : '#0ff';
-                }
-                if (drumDisplay) {
-                    const now = audioContext ? audioContext.currentTime : 0;
-                    const lastHit = lastDrumTime.get(circleId) || 0;
-                    const canDrum = (now - lastHit) >= 0.3;
-                    drumDisplay.textContent = canDrum ? 'Ready' : 'Cooldown';
-                    drumDisplay.style.color = canDrum ? '#0f0' : '#f00';
-                }
-                if (sampleDisplay) {
-                    const sampleIndex = drumSamples.get(circleId);
-                    sampleDisplay.textContent = sampleIndex !== undefined ? `Sample ${sampleIndex + 1}` : 'Not assigned';
-                }
-            }
-        }
+
         
         // Create a drum sound for a circle
         function createDrumSound(circleId, frequency) {
-            console.log(`Creating drum sound for circle ${circleId} with frequency ${frequency}`);
+
             if (!audioContext || !window.audioEnabled) {
-                console.log('Audio context or audio disabled');
+
                 return;
             }
             
@@ -286,12 +240,12 @@
                 // Assign a random sample if none assigned yet
                 sampleIndex = Math.floor(Math.random() * 5);
                 drumSamples.set(circleId, sampleIndex);
-                console.log(`Assigned drum sample ${sampleIndex + 1} to circle ${circleId}`);
+
             }
             
             // Check if we have the sample loaded
             if (!audioBuffers[sampleIndex]) {
-                console.log(`Drum sample ${sampleIndex + 1} not loaded yet`);
+
                 return;
             }
             
@@ -402,10 +356,7 @@
             font-size: clamp(24px, 5vw, 32px);
             text-align: center;
             margin-bottom: 30px;
-            background: linear-gradient(45deg, #f0f, #f00);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: #f0f;
         }
         
         .canvas-container {
@@ -431,7 +382,7 @@
         .add-circle-btn {
             width: 100%;
             padding: 15px;
-            background: linear-gradient(45deg, #f0f, #f00);
+            background: #f0f;
             color: #000;
             border: none;
             border-radius: 8px;
@@ -573,7 +524,7 @@
                 <button class="add-circle-btn" onclick="addCircle()">➕ Add Circle</button>
                 <button id="audioToggle" style="margin-top: 10px; padding: 5px 10px; background: #333; color: #fff; border: 1px solid #555; border-radius: 4px; cursor: pointer; touch-action: manipulation;">🔊 Audio: ON</button>
                 <div id="circleList">
-                    <!-- Circle cards will be added here -->
+        
                 </div>
             </div>
         </div>
@@ -656,27 +607,7 @@
                                oninput="updateCircle(${circle.id}, 'p', parseFloat(this.value))">
                     </div>
                 </div>
-                <div class="card-row3">
-                    <div class="audio-info">
-                        <span class="audio-label">Y Pos: <span class="y-pos-display">0</span></span>
-                        <span class="audio-label">Y%: <span class="y-percent-display">50%</span></span>
-                        <span class="audio-label">Scaled R: <span class="scaled-r-display">${circle.r}</span></span>
-                    </div>
-                </div>
-                <div class="card-row4">
-                    <div class="audio-info">
-                        <span class="audio-label">X Pos: <span class="x-pos-display">0</span></span>
-                        <span class="audio-label">X%: <span class="x-percent-display">50%</span></span>
-                        <span class="audio-label">Scaled Freq: <span class="scaled-freq-display">220</span></span>
-                    </div>
-                </div>
-                <div class="card-row5">
-                    <div class="audio-info">
-                        <span class="audio-label">Upright: <span class="upright-display">No</span></span>
-                        <span class="audio-label">Drum: <span class="drum-display">Ready</span></span>
-                        <span class="audio-label">Sample: <span class="sample-display">-</span></span>
-                    </div>
-                </div>
+
             `;
             circleList.appendChild(card);
         }
@@ -695,16 +626,7 @@
         .slider-col label { display: block; font-size: 0.95em; margin-bottom: 2px; text-align: center; }
         .slider { width: 100%; }
         .value-display { display: block; font-family: monospace; font-size: 0.95em; color: #f0f; }
-        .card-row3 { margin-top: 8px; padding-top: 8px; border-top: 1px solid #444; }
-        .card-row4 { margin-top: 4px; padding-top: 4px; border-top: 1px solid #333; }
-        .card-row5 { margin-top: 4px; padding-top: 4px; border-top: 1px solid #222; }
-        .audio-info { display: flex; justify-content: space-between; font-size: 0.85em; }
-        .audio-label { color: #aaa; }
-        .y-pos-display, .y-percent-display, .scaled-r-display, .x-pos-display, .x-percent-display, .scaled-freq-display, .upright-display, .drum-display, .sample-display { 
-            font-family: monospace; 
-            color: #0ff; 
-            font-weight: bold; 
-        }
+
         `;
         document.head.appendChild(style);
         

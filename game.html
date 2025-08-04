@@ -5,15 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Yay! Yay! Yay! Yay!</title>
     <script>
-        // Audio context and oscillator management
+        
         let audioContext;
-        let oscillators = new Map(); // Map of circle ID to oscillator
-        let gainNodes = new Map();   // Map of circle ID to gain node
-        let pannerNodes = new Map(); // Map of circle ID to panner node
-        let drumSamples = new Map(); // Map of circle ID to assigned drum sample
-        let audioBuffers = []; // Array to store loaded audio buffers
-        let lastDrumTime = new Map(); // Track last drum hit time to prevent spam
-        window.audioEnabled = true;  // Global audio state
+        let oscillators = new Map();
+        let gainNodes = new Map();  
+        let pannerNodes = new Map(); 
+        let drumSamples = new Map(); 
+        let audioBuffers = []; 
+        let lastDrumTime = new Map(); 
+        let fadeInStartTime = new Map(); 
+        window.audioEnabled = true; 
         
         // Load drum samples
         async function loadDrumSamples() {
@@ -27,7 +28,7 @@
                     const arrayBuffer = await response.arrayBuffer();
                     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
                     audioBuffers[i] = audioBuffer;
-                    console.log(`Loaded drum sample ${i + 1}`);
+
                 } catch (error) {
                     console.error(`Failed to load drum sample ${i + 1}:`, error);
                 }
@@ -38,37 +39,36 @@
         function initAudio() {
             if (!audioContext) {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                console.log('Audio context created, state:', audioContext.state);
-                // Resume audio context if it's suspended (required for autoplay policies)
+
                 if (audioContext.state === 'suspended') {
                     audioContext.resume().then(() => {
-                        console.log('Audio context resumed');
+    
                     });
                 }
-                // Load drum samples after context is created
+
                 loadDrumSamples();
             }
         }
         
-        // Create or update oscillator for a circle
-        function updateCircleAudio(circle, isActive = true) {
+
+        function updateCircleAudio(circle, isActive = true, fadeIn = false) {
             if (!window.audioEnabled) return;
             
-            // Initialize audio context if needed
+            // Initialize audio context
             initAudio();
             
             if (!audioContext) return;
             
             const circleId = circle.id;
             
-            // Remove existing audio if circle is no longer active
+            // Remove existing audiio if circle is no longer active
             if (!isActive) {
                 if (oscillators.has(circleId)) {
                     const oscillator = oscillators.get(circleId);
                     const gainNode = gainNodes.get(circleId);
                     
                     if (gainNode) {
-                        // Fade out over 0.5 seconds
+                        // Fade over 0.5 seconds
                         gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.5);
                         setTimeout(() => {
                             oscillator.stop();
@@ -86,13 +86,12 @@
                 return;
             }
             
-            // Create oscillator if it doesn't exist
+            // Create oscillator
             if (!oscillators.has(circleId)) {
                 const oscillator = audioContext.createOscillator();
                 const gainNode = audioContext.createGain();
                 const pannerNode = audioContext.createStereoPanner();
                 
-                // Create a compressor to prevent clipping
                 const compressor = audioContext.createDynamicsCompressor();
                 compressor.threshold.setValueAtTime(-24, audioContext.currentTime);
                 compressor.knee.setValueAtTime(30, audioContext.currentTime);
@@ -100,85 +99,73 @@
                 compressor.attack.setValueAtTime(0.003, audioContext.currentTime);
                 compressor.release.setValueAtTime(0.25, audioContext.currentTime);
                 
-                // Connect the audio chain
                 oscillator.connect(gainNode);
                 gainNode.connect(pannerNode);
                 pannerNode.connect(compressor);
                 compressor.connect(audioContext.destination);
                 
-                // Store references
                 oscillators.set(circleId, oscillator);
                 gainNodes.set(circleId, gainNode);
                 pannerNodes.set(circleId, pannerNode);
                 
-                // Start the oscillator
                 oscillator.start();
+                
+                if (fadeIn) {
+                    
+                    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+                    gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 3);
+                    fadeInStartTime.set(circleId, audioContext.currentTime);
+                }
             }
             
-            // Update parameters based on circle properties
             const oscillator = oscillators.get(circleId);
             const gainNode = gainNodes.get(circleId);
             const pannerNode = pannerNodes.get(circleId);
             
-            // Frequency mapping: baseNote + f*50 Hz (with range limiting)
             const baseNote = 220; // A3
             const frequency = Math.max(20, Math.min(2000, baseNote + circle.f * 50)); // Clamp to 20-2000 Hz
             oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
             
-            // Remove panning - set to center
             pannerNode.pan.setValueAtTime(0, audioContext.currentTime);
             
-            // Use sine wave for smooth, Glass-like tones
             oscillator.type = 'sine';
             
-            // Debug logging
-            console.log(`Audio updated for circle ${circleId}: freq=${frequency}Hz, pan=${pan}`);
         }
         
         // Create a drum sound for a circle
         function createDrumSound(circleId, frequency) {
             if (!audioContext || !window.audioEnabled) return;
             
-            // Prevent drum spam - only trigger once per 0.3 seconds
             const now = audioContext.currentTime;
             const lastHit = lastDrumTime.get(circleId) || 0;
             if (now - lastHit < 0.3) return;
             lastDrumTime.set(circleId, now);
             
-            // Get the assigned drum sample for this circle
             let sampleIndex = drumSamples.get(circleId);
             if (sampleIndex === undefined) {
-                // Assign a random sample if none assigned yet
+                
                 sampleIndex = Math.floor(Math.random() * 5);
                 drumSamples.set(circleId, sampleIndex);
             }
             
-            // Check if we have the sample loaded
             if (!audioBuffers[sampleIndex]) return;
             
-            // Create audio buffer source for the drum sample
             const drumSource = audioContext.createBufferSource();
             const drumGain = audioContext.createGain();
             
-            // Connect drum audio chain
             drumSource.connect(drumGain);
             drumGain.connect(audioContext.destination);
             
-            // Set the buffer to the loaded sample
             drumSource.buffer = audioBuffers[sampleIndex];
             
-            // Adjust playback rate based on frequency (optional)
-            const playbackRate = 1.0 + (Math.abs(frequency) - 1) * 0.1; // Slight variation
+            const playbackRate = 1.0 + (Math.abs(frequency) - 1) * 0.1;
             drumSource.playbackRate.setValueAtTime(playbackRate, now);
             
-            // Set volume
             drumGain.gain.setValueAtTime(0.4, now);
             
-            // Start the drum sample
             drumSource.start(now);
         }
         
-        // Update audio volume based on Y position (called from animation loop)
         function updateCircleVolume(circleId, yPosition) {
             if (!window.audioEnabled || !gainNodes.has(circleId)) return;
             
@@ -186,35 +173,40 @@
             const circle = circles.find(c => c.id === circleId);
             if (!circle) return;
             
-            // Map Y position to radius scaling: Y position as percentage of canvas height
-            // For game slots, canvas height is 80, so Y ranges from -40 to +40
             const canvasHeight = 80;
-            const yPercentage = Math.max(0, Math.min(1, (yPosition + 40) / canvasHeight)); // 0 to 1
+            const yPercentage = Math.max(0, Math.min(1, (yPosition + 40) / canvasHeight)); 
             
-            // Scale the radius by the Y percentage
             const scaledRadius = circle.r * yPercentage;
-            const dynamicVolume = Math.max(0, Math.min(0.3, scaledRadius / 100 * 0.3)); // Clamp to 0-0.3
+            const dynamicVolume = Math.max(0, Math.min(0.3, scaledRadius / 100 * 0.3));
             
-            // Smooth volume change with exponential smoothing to prevent popping
-            const currentGain = gainNode.gain.value;
-            const smoothedGain = currentGain * 0.9 + dynamicVolume * 0.1; // Smoothing factor
+            const fadeStart = fadeInStartTime.get(circleId);
+            const fadeInDuration = 3;
+            const isInFadeIn = fadeStart && (audioContext.currentTime - fadeStart) < fadeInDuration;
             
-            gainNode.gain.setValueAtTime(smoothedGain, audioContext.currentTime);
+            if (!isInFadeIn) {
+                const currentGain = gainNode.gain.value;
+                const smoothedGain = currentGain * 0.9 + dynamicVolume * 0.1; 
+                gainNode.gain.setValueAtTime(smoothedGain, audioContext.currentTime);
+            }
+
+            const globalT = window.animationTime || 0;
+            const circleX = circle.r * Math.cos(circle.f * globalT + circle.p);
+            const circleY = circle.r * Math.sin(circle.f * globalT + circle.p);
             
-            // Check if circle is in upright position and trigger drum
-            const isUpright = yPosition < -30; // Threshold for upright position in game
+            const isUpright = Math.abs(circleX) < 10 && circleY < 10; 
+            
+            
             if (isUpright) {
                 createDrumSound(circleId, circle.f);
+
             }
         }
         
-        // Update audio for all active circles
         function updateAllAudio(activeCircles) {
             if (!window.audioEnabled) return;
             
-            console.log('Updating audio for', activeCircles.length, 'circles');
+
             
-            // Stop audio for all circles first
             oscillators.forEach((osc, id) => {
                 osc.stop();
             });
@@ -222,22 +214,18 @@
             gainNodes.clear();
             pannerNodes.clear();
             
-            // Start audio for active circles
             activeCircles.forEach(circle => {
-                updateCircleAudio(circle, true);
+                updateCircleAudio(circle, true, true); 
             });
         }
         
-        // Stop all audio with fade out
         function stopAllAudio() {
-            const fadeOutTime = 0.5; // 0.5 second fade out
+            const fadeOutTime = 0.5; 
             
             oscillators.forEach((osc, id) => {
                 const gainNode = gainNodes.get(id);
                 if (gainNode) {
-                    // Fade out the gain
                     gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + fadeOutTime);
-                    // Stop the oscillator after fade out
                     setTimeout(() => {
                         if (osc) {
                             osc.stop();
@@ -248,13 +236,13 @@
                 }
             });
             
-            // Clear references after fade out
             setTimeout(() => {
                 oscillators.clear();
                 gainNodes.clear();
                 pannerNodes.clear();
                 drumSamples.clear();
                 lastDrumTime.clear();
+                fadeInStartTime.clear();
             }, fadeOutTime * 1000);
         }
     </script>
@@ -308,8 +296,8 @@
             align-items: center; 
             justify-content: center; 
             position: relative;
-            width: 80px;
-            height: 80px;
+            width: 100px;
+            height: 100px;
             touch-action: none;
             user-select: none;
             -webkit-user-select: none;
@@ -317,6 +305,13 @@
             border-radius: 8px;
             padding: 5px;
             border: 1px solid #333;
+        }
+        
+        @media (max-width: 600px) {
+            .circle {
+                width: 80px;
+                height: 80px;
+            }
         }
         .circle canvas {
             width: 100%;
@@ -334,8 +329,8 @@
             box-shadow: 0 0 10px rgba(0,0,0,0.5);
         }
         .slot { 
-            width: 80px; 
-            height: 80px; 
+            width: 100px; 
+            height: 100px; 
             border: 2px dashed #555; 
             border-radius: 8px; 
             display: flex; 
@@ -347,6 +342,18 @@
             padding: 0;
             position: relative;
             overflow: hidden;
+            touch-action: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        
+        @media (max-width: 600px) {
+            .slot {
+                width: 80px;
+                height: 80px;
+            }
         }
         .slot canvas {
             width: 100%;
@@ -387,6 +394,35 @@
             transition: border 0.3s, box-shadow 0.3s;
             max-width: 100%;
             height: auto;
+            position: relative;
+        }
+        
+        .audio-toggle {
+            position: absolute;
+            top: 30px;
+            right: 10px;
+            width: 50px;
+            height: 50px;
+            background: rgba(0,0,0,0.7);
+            border: 2px solid #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+        
+        .audio-toggle:hover {
+            background: rgba(255,255,255,0.2);
+            transform: scale(1.1);
+        }
+        
+        .audio-toggle.muted {
+            opacity: 0.5;
         }
         #message { 
             font-size: clamp(18px, 4vw, 24px);
@@ -614,7 +650,10 @@
   <div class="slots" id="slots"></div>
 </div>
 
-<canvas id="canvas" width="400" height="350"></canvas>
+<div style="position: relative; display: inline-block;">
+    <canvas id="canvas" width="400" height="350"></canvas>
+    <div id="audioToggle" class="audio-toggle" title="Toggle Audio">🔊</div>
+</div>
 
 <div id="historyPanel">
   <div class="legend">
@@ -637,7 +676,7 @@
 </div>
 
 <script>
-    //--------- LEVEL DATA
+    //--- LEVEL DATA
 const levels = [
   {
     "name": "Ellipse",
@@ -875,14 +914,11 @@ const message = document.getElementById("message");
 const nextBtn = document.getElementById("nextBtn");
 const solveBtn = document.getElementById("solveBtn");
 
-//----- LOAD LEVEL
 function loadLevel(n) {
   const L = levels[n];
   
-  // Compute target points first
   computeTarget(L.target);
   
-  // Clear all animations first
   const allCanvases = document.querySelectorAll('.circle canvas, .slot canvas');
   allCanvases.forEach(canvas => {
     const ctx = canvas.getContext('2d');
@@ -892,83 +928,69 @@ function loadLevel(n) {
   box.innerHTML = "";
   slotContainer.innerHTML = "";
   nextBtn.style.display = "none";
-  solveBtn.style.display = "none"; // Hide solve button initially
+  solveBtn.style.display = "none"; 
   canvas.style.boxShadow = "none";
   document.getElementById('attemptsHistory').innerHTML = "";
   attempts = [];
   
-  // Stop main canvas drawing (and show target shape)
   stopDrawing();
   
-  // Stop all audio when loading new level
   stopAllAudio();
 
-  // Use exactly the number of target circles needed for this level
   const targetCircles = L.target;
   
-  // Use exactly 2 decoys
   const decoyCircles = L.decoys.slice(0, 2);
 
-  // Merge target + decoys and shuffle
   circles = [...targetCircles, ...decoyCircles].sort(() => Math.random() - 0.5);
 
-  // Create draggable circles with animated previews
   circles.forEach(c => {
     const div = document.createElement("div");
-    div.className = "circle";
-    div.draggable = true;
-    div.dataset.id = c.id;
+          div.className = "circle";
+      div.draggable = true;
+      div.dataset.id = c.id;
+      div.style.touchAction = "none";
     
-    // Create preview canvas
     const canvas = document.createElement("canvas");
-    // Use smaller canvas on mobile
     const isMobile = window.innerWidth <= 600;
-    canvas.width = isMobile ? 40 : 80;
-    canvas.height = isMobile ? 40 : 80;
+    canvas.width = isMobile ? 40 : 100;
+    canvas.height = isMobile ? 40 : 100;
     div.appendChild(canvas);
 
-    // Function to create animation context
     const createAnimation = (targetCanvas) => {
       const ctx = targetCanvas.getContext("2d");
       let t = 0;
       let animationId;
       const isMobile = window.innerWidth <= 600;
-      const size = isMobile ? 40 : 80;
+      const size = isMobile ? 40 : 100;
       const center = size / 2;
-      const scale = isMobile ? 0.2 : 0.4; // Adjust scale for mobile
+      const scale = isMobile ? 0.2 : 0.5; 
       
-      // Initialize trail
       let trail = [];
-      const trailLength = 30; // Shorter trail for previews
+      const trailLength = 30;
       
       const animate = () => {
         ctx.clearRect(0, 0, size, size);
         ctx.save();
         ctx.translate(center, center);
         
-        // Draw orbit path
         ctx.strokeStyle = "rgba(128,128,128,0.2)";
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.arc(0, 0, c.r * scale, 0, Math.PI * 2);
         ctx.stroke();
         
-        // Draw moving point and connecting line
         const x = c.r * scale * Math.cos(c.f * t + c.p);
         const y = c.r * scale * Math.sin(c.f * t + c.p);
         
-        // Update audio volume based on Y position (for draggable previews)
         updateCircleVolume(c.id, y);
         
-        // Add point to trail
         trail.push({ x, y, t });
         if (trail.length > trailLength) {
           trail.shift();
         }
         
-        // Draw trail
         if (trail.length > 1) {
-          ctx.strokeStyle = c.color + "60"; // More transparent for previews
+          ctx.strokeStyle = c.color + "60"; 
           ctx.lineWidth = 1;
           ctx.beginPath();
           ctx.moveTo(trail[0].x, trail[0].y);
@@ -978,7 +1000,6 @@ function loadLevel(n) {
           ctx.stroke();
         }
         
-        // Draw connecting line
         ctx.strokeStyle = "#fff";
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -986,7 +1007,6 @@ function loadLevel(n) {
         ctx.lineTo(x, y);
         ctx.stroke();
         
-        // Draw moving point
         ctx.fillStyle = c.color;
         ctx.beginPath();
         ctx.arc(x, y, 3, 0, Math.PI * 2);
@@ -997,10 +1017,8 @@ function loadLevel(n) {
         animationId = requestAnimationFrame(animate);
       };
       
-      // Start animation
       animate();
       
-      // Return function to stop animation
       return () => {
         if (animationId) {
           cancelAnimationFrame(animationId);
@@ -1008,39 +1026,48 @@ function loadLevel(n) {
       };
     };
 
-    // Start animation for the original circle
     const stopAnimation = createAnimation(canvas);
 
-    // Desktop drag events
     div.addEventListener("dragstart", e => {
       e.dataTransfer.setData("id", c.id);
+      e.dataTransfer.effectAllowed = "move";
       const clone = canvas.cloneNode(true);
       e.dataTransfer.setDragImage(clone, 40, 40);
+      console.log("Drag start detected");
     });
 
-    // Cleanup when element is removed
     div.addEventListener("remove", () => {
       stopAnimation();
     });
 
-    // Mobile touch events
     div.addEventListener("touchstart", e => {
-        if (e.cancelable) e.preventDefault();
+        e.preventDefault();
+        e.stopPropagation();
         const touch = e.touches[0];
+        console.log("Touch start detected");
+        
+        // Safari-specific handling
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        console.log("Is Safari:", isSafari);
+        
         const clone = div.cloneNode(true);
         clone.className = "circle dragging";
+        clone.style.touchAction = "none";
+        clone.style.position = "fixed";
+        clone.style.zIndex = "10000";
+        clone.style.pointerEvents = "none";
+        clone.style.transform = "translate(-50%, -50%)";
         document.body.appendChild(clone);
         
-        // Start animation in the clone
         const stopCloneAnimation = createAnimation(clone.querySelector('canvas'));
         
         const moveCircle = (moveEvent) => {
-            if (moveEvent.cancelable) moveEvent.preventDefault();
+            moveEvent.preventDefault();
+            moveEvent.stopPropagation();
             const moveTouch = moveEvent.touches[0];
             clone.style.left = moveTouch.pageX + "px";
             clone.style.top = moveTouch.pageY + "px";
             
-            // Find slot under touch point
             const slots = document.querySelectorAll(".slot:not(.locked)");
             slots.forEach(slot => slot.classList.remove("dragover"));
             
@@ -1050,60 +1077,55 @@ function loadLevel(n) {
         };
         
         const endTouch = (endEvent) => {
-            if (endEvent.cancelable) endEvent.preventDefault();
+            endEvent.preventDefault();
+            endEvent.stopPropagation();
             const endTouch = endEvent.changedTouches[0];
+            console.log("Touch end detected at", endTouch.pageX, endTouch.pageY);
             const dropTarget = document.elementFromPoint(endTouch.pageX, endTouch.pageY);
             const slot = dropTarget?.closest(".slot:not(.locked)");
+            console.log("Drop target:", dropTarget, "Slot:", slot);
             
             if (slot) {
-                // Clear the slot completely
+                console.log("Dropping into slot:", slot);
                 slot.innerHTML = '';
                 slot.classList.remove("dragover");
                 slot.dataset.id = c.id;
                 slot.classList.add("filled");
                 
-                // Create new canvas
                 const canvas = document.createElement('canvas');
                 const isMobile = window.innerWidth <= 600;
-                canvas.width = isMobile ? 40 : 80;
-                canvas.height = isMobile ? 40 : 80;
+                canvas.width = isMobile ? 40 : 100;
+                canvas.height = isMobile ? 40 : 100;
                 canvas.style.cssText = "width: 100%; height: 100%; display: block;";
                 slot.appendChild(canvas);
                 
-                // Start animation for this slot
                 const ctx = canvas.getContext("2d");
                 let t = 0;
                 
-                // Initialize trail for this slot
                 slot.trail = [];
-                slot.trailLength = 50; // Number of trail points to keep
+                slot.trailLength = 50;
                 
                 const animate = () => {
                   ctx.clearRect(0, 0, canvas.width, canvas.height);
                   ctx.save();
                   ctx.translate(canvas.width/2, canvas.height/2);
                   
-                  // Draw orbit path
                   ctx.strokeStyle = "rgba(128,128,128,0.2)";
                   ctx.lineWidth = 1;
                   ctx.beginPath();
                   ctx.arc(0, 0, c.r * 0.4, 0, Math.PI * 2);
                   ctx.stroke();
                   
-                  // Draw moving point and connecting line
                   const x = c.r * 0.4 * Math.cos(c.f * t + c.p);
                   const y = c.r * 0.4 * Math.sin(c.f * t + c.p);
                   
-                  // Update audio volume based on Y position
                   updateCircleVolume(c.id, y);
                   
-                  // Add point to trail
                   slot.trail.push({ x, y, t });
                   if (slot.trail.length > slot.trailLength) {
                     slot.trail.shift();
                   }
                   
-                  // Draw trail
                   if (slot.trail.length > 1) {
                     ctx.strokeStyle = c.color + "80"; // Semi-transparent
                     ctx.lineWidth = 2;
@@ -1115,7 +1137,6 @@ function loadLevel(n) {
                     ctx.stroke();
                   }
                   
-                  // Draw connecting line
                   ctx.strokeStyle = "#fff";
                   ctx.lineWidth = 2;
                   ctx.beginPath();
@@ -1123,7 +1144,6 @@ function loadLevel(n) {
                   ctx.lineTo(x, y);
                   ctx.stroke();
                   
-                  // Draw moving point
                   ctx.fillStyle = c.color;
                   ctx.beginPath();
                   ctx.arc(x, y, 3, 0, Math.PI * 2);
@@ -1137,7 +1157,6 @@ function loadLevel(n) {
                 
                 slot.style.border = "2px solid #fff";
                 
-                // Initialize audio context and update audio
                 initAudio();
                 updateCircleAudio(c, true);
             }
@@ -1155,28 +1174,25 @@ function loadLevel(n) {
     box.appendChild(div);
   });
 
-  // Create slots based on target count
   const targetCount = L.target.length;
   for (let i = 0; i < targetCount; i++) {
     const slot = document.createElement("div");
     slot.className = "slot";
     
-    // Add placeholder text
     const placeholder = document.createElement("div");
     placeholder.className = "placeholder";
     placeholder.innerText = "drop";
     slot.appendChild(placeholder);
     
-    // Add canvas for animation
     const canvas = document.createElement("canvas");
-    // Use smaller canvas on mobile
     const isMobile = window.innerWidth <= 600;
-    canvas.width = isMobile ? 40 : 80;
-    canvas.height = isMobile ? 40 : 80;
+    canvas.width = isMobile ? 40 : 100;
+    canvas.height = isMobile ? 40 : 100;
     slot.appendChild(canvas);
     
     slot.addEventListener("dragover", e => {
         e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
         slot.classList.add("dragover");
     });
     
@@ -1186,13 +1202,13 @@ function loadLevel(n) {
     
     slot.addEventListener("drop", e => {
       e.preventDefault();
+      e.stopPropagation();
       slot.classList.remove("dragover");
       const id = e.dataTransfer.getData("id");
       slot.dataset.id = id;
       slot.classList.add("filled");
       slot.style.border = "2px solid #fff";
       
-      // Clear placeholder and show canvas
       const placeholder = slot.querySelector('.placeholder');
       if (placeholder) placeholder.style.display = 'none';
       
@@ -1201,11 +1217,9 @@ function loadLevel(n) {
       
       const circle = circles.find(c => c.id === id);
       if (circle) {
-        // Start animation for this slot
         const ctx = canvas.getContext("2d");
         let t = 0;
         
-        // Initialize trail for this slot
         slot.trail = [];
         slot.trailLength = 50; // Number of trail points to keep
         
@@ -1225,7 +1239,6 @@ function loadLevel(n) {
           const x = circle.r * 0.4 * Math.cos(circle.f * t + circle.p);
           const y = circle.r * 0.4 * Math.sin(circle.f * t + circle.p);
           
-          // Add point to trail
           slot.trail.push({ x, y, t });
           if (slot.trail.length > slot.trailLength) {
             slot.trail.shift();
@@ -1243,7 +1256,6 @@ function loadLevel(n) {
             ctx.stroke();
           }
           
-          // Draw connecting line
           ctx.strokeStyle = "#fff";
           ctx.lineWidth = 2;
           ctx.beginPath();
@@ -1268,7 +1280,6 @@ function loadLevel(n) {
     slotContainer.appendChild(slot);
   }
   
-  // Add Check button container
   const buttonContainer = document.createElement("div");
   buttonContainer.id = "buttonContainer";
   buttonContainer.style.cssText = "display: flex; justify-content: center; margin: 10px; width: 100%;";
@@ -1278,7 +1289,6 @@ function loadLevel(n) {
   checkBtn.innerText = "Check Solution";
   checkBtn.style.cssText = "padding: 10px 20px; background: #0ff; color: #000; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; width: 100%; max-width: 800px; touch-action: manipulation;";
   
-  // Add both click and touch events for mobile compatibility
   checkBtn.addEventListener("click", checkAttempt);
   checkBtn.addEventListener("touchend", (e) => {
     e.preventDefault();
@@ -1287,43 +1297,51 @@ function loadLevel(n) {
   
   buttonContainer.appendChild(checkBtn);
   
-  // Add audio toggle button
-  const audioToggleBtn = document.createElement("button");
-  audioToggleBtn.id = "audioToggle";
-  audioToggleBtn.innerText = "🔊 Audio: ON";
-  audioToggleBtn.style.cssText = "margin-top: 10px; padding: 5px 10px; background: #333; color: #fff; border: 1px solid #555; border-radius: 4px; cursor: pointer; touch-action: manipulation;";
-  
-  audioToggleBtn.addEventListener("click", () => {
-    // Initialize audio context on first user interaction
-    initAudio();
-    
-    window.audioEnabled = !window.audioEnabled;
-    audioToggleBtn.innerText = window.audioEnabled ? "🔊 Audio: ON" : "🔇 Audio: OFF";
-    if (!window.audioEnabled) {
-      stopAllAudio();
-    }
-  });
-  
-  audioToggleBtn.addEventListener("touchend", (e) => {
-    e.preventDefault();
-    // Initialize audio context on first user interaction
-    initAudio();
-    
-    window.audioEnabled = !window.audioEnabled;
-    audioToggleBtn.innerText = window.audioEnabled ? "🔊 Audio: ON" : "🔇 Audio: OFF";
-    if (!window.audioEnabled) {
-      stopAllAudio();
-    }
-  });
-  
-  buttonContainer.appendChild(audioToggleBtn);
+
   
   slotContainer.appendChild(buttonContainer);
+
+  const audioToggle = document.getElementById('audioToggle');
+  if (audioToggle) {
+    audioToggle.addEventListener("click", (e) => {
+      e.stopPropagation(); 
+      initAudio();
+      
+      window.audioEnabled = !window.audioEnabled;
+      if (window.audioEnabled) {
+        audioToggle.textContent = '🔊';
+        audioToggle.classList.remove('muted');
+        audioToggle.title = 'Mute Audio';
+      } else {
+        audioToggle.textContent = '🔇';
+        audioToggle.classList.add('muted');
+        audioToggle.title = 'Unmute Audio';
+        stopAllAudio();
+      }
+    });
+    
+    audioToggle.addEventListener("touchend", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      initAudio();
+      
+      window.audioEnabled = !window.audioEnabled;
+      if (window.audioEnabled) {
+        audioToggle.textContent = '🔊';
+        audioToggle.classList.remove('muted');
+        audioToggle.title = 'Mute Audio';
+      } else {
+        audioToggle.textContent = '🔇';
+        audioToggle.classList.add('muted');
+        audioToggle.title = 'Unmute Audio';
+        stopAllAudio();
+      }
+    });
+  }
 
   showMessage(`Level: ${L.name}`);
 }
 
-// ---------------- PRECOMPUTE TARGET PATH ----------------
 function computeTarget(target) {
   targetPoints = [];
   for (let step = 0; step < 300; step++) {
@@ -1337,38 +1355,39 @@ function computeTarget(target) {
   }
 }
 
-// ---------------- CHECK VICTORY ----------------
 function checkAttempt() {
-  const activeSlots = Array.from(slotContainer.querySelectorAll(".slot"));
-  const activeIDs = activeSlots.map(s => s.dataset.id).filter(id => id); // Get filled slots
-  
-  const targetCount = levels[currentLevel].target.length;
-  if (activeIDs.length !== targetCount) {
-    showMessage(`Fill all ${targetCount} slots to check your solution`);
-    return;
-  }
+  try {
 
-  // Start drawing the pattern
+    const activeSlots = Array.from(slotContainer.querySelectorAll(".slot"));
+    const activeIDs = activeSlots.map(s => s.dataset.id).filter(id => id); // Get filled slots
+    
+
+    const targetCount = levels[currentLevel].target.length;
+
+    
+    if (activeIDs.length !== targetCount) {
+      showMessage(`Fill all ${targetCount} slots to check your solution`);
+      return;
+    }
+
   startDrawing();
   
-  // Update audio for all active circles
+  initAudio();
   const activeCircles = activeIDs.map(id => circles.find(c => c.id === id));
   updateAllAudio(activeCircles);
 
   const targetIDs = levels[currentLevel].target.map(c => c.id);
   let correctCircles = 0;
   
-  // Check for correct circles (order doesn't matter)
   activeIDs.forEach(id => {
     if (targetIDs.includes(id)) {
       correctCircles++;
     }
   });
   
-  // Check if all target circles are present
   const hasAllTargetCircles = targetIDs.every(targetID => activeIDs.includes(targetID));
+
   
-  // Record the attempt (always record, even if incomplete)
   const attempt = {
     circles: activeIDs.map(id => circles.find(c => c.id === id)),
     feedback: {
@@ -1378,12 +1397,10 @@ function checkAttempt() {
   };
   attempts.push(attempt);
   
-  // Create attempt display
   const historyDiv = document.getElementById('attemptsHistory');
   const attemptDiv = document.createElement('div');
   attemptDiv.className = 'attempt';
 
-  // Add circles
   const circlesDiv = document.createElement('div');
   circlesDiv.className = 'attempt-circles';
   attempt.circles.forEach(circle => {
@@ -1394,18 +1411,15 @@ function checkAttempt() {
   });
   attemptDiv.appendChild(circlesDiv);
 
-  // Add feedback dots
   const feedbackDiv = document.createElement('div');
   feedbackDiv.className = 'feedback-dots';
   
-  // Correct circle dots
   for (let i = 0; i < attempt.feedback.correctCircles; i++) {
     const dot = document.createElement('div');
     dot.className = 'feedback-dot correct-place';
     feedbackDiv.appendChild(dot);
   }
   
-  // Wrong dots
   for (let i = 0; i < attempt.feedback.wrong; i++) {
     const dot = document.createElement('div');
     dot.className = 'feedback-dot wrong';
@@ -1417,9 +1431,10 @@ function checkAttempt() {
 
   showMessage(`Attempt ${attempts.length}: ${correctCircles} correct circles`);
   
-  // Handle button replacement for all non-victory cases
+
+  
   if (correctCircles !== targetCount || !hasAllTargetCircles) {
-    // Replace check button with try again button
+
     const buttonContainer = document.getElementById('buttonContainer');
     const checkBtn = document.getElementById('checkBtn');
     if (buttonContainer && checkBtn) {
@@ -1429,47 +1444,38 @@ function checkAttempt() {
       tryAgainBtn.style.cssText = "padding: 10px 20px; background: #f44; color: #000; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; width: 100%; max-width: 800px;";
       
       const handleTryAgain = () => {
-        // Clear slots
         activeSlots.forEach(slot => {
-          // Stop any existing animation
           if (slot.animationId) {
             cancelAnimationFrame(slot.animationId);
             slot.animationId = null;
           }
           
-          // Clear the slot completely
           slot.innerHTML = '';
           slot.classList.remove('filled');
           slot.classList.remove('locked');
           slot.style.border = '2px dashed #555';
           
-          // Restore placeholder
           const placeholder = document.createElement("div");
           placeholder.className = "placeholder";
           placeholder.innerText = "drop";
           slot.appendChild(placeholder);
           
-          // Recreate canvas for animation
           const canvas = document.createElement("canvas");
           const isMobile = window.innerWidth <= 600;
-          canvas.width = isMobile ? 40 : 80;
-          canvas.height = isMobile ? 40 : 80;
+          canvas.width = isMobile ? 40 : 100;
+          canvas.height = isMobile ? 40 : 100;
           slot.appendChild(canvas);
         });
         
-        // Stop drawing epicycles
         stopDrawing();
         
-        // Stop all audio
         stopAllAudio();
         
-        // Replace try again button with check button
         const newCheckBtn = document.createElement("button");
         newCheckBtn.id = "checkBtn";
         newCheckBtn.innerText = "Check Solution";
         newCheckBtn.style.cssText = "padding: 10px 20px; background: #0ff; color: #000; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; width: 100%; max-width: 800px; touch-action: manipulation;";
         
-        // Add both click and touch events for mobile compatibility
         newCheckBtn.addEventListener("click", checkAttempt);
         newCheckBtn.addEventListener("touchend", (e) => {
           e.preventDefault();
@@ -1485,7 +1491,6 @@ function checkAttempt() {
         handleTryAgain();
       });
       
-      // Animate button transition
       checkBtn.style.transition = "opacity 0.3s";
       checkBtn.style.opacity = "0";
       setTimeout(() => {
@@ -1499,19 +1504,22 @@ function checkAttempt() {
     }
   }
   
-  // Check for victory
   if (correctCircles === targetCount && hasAllTargetCircles) {
+
     triggerVictory();
+  } else {
+
+  }
+  } catch (error) {
+    console.error('Error in checkAttempt:', error);
+    showMessage('An error occurred while checking your solution');
   }
 }
 
-// ---------------- VICTORY ACTION ----------------
 function triggerVictory() {
   showMessage("🎉 Correct!");
   
-  // Check if this was the last level
   if (currentLevel === levels.length - 1) {
-    // Show victory modal
     showVictoryModal();
   } else {
     // Replace check button with next button
@@ -1532,7 +1540,6 @@ function triggerVictory() {
         handleNextLevel();
       });
       
-      // Animate button transition
       checkBtn.style.transition = "opacity 0.3s";
       checkBtn.style.opacity = "0";
       setTimeout(() => {
@@ -1541,18 +1548,16 @@ function triggerVictory() {
     }
   }
   
-  solveBtn.style.display = "none"; // Hide solve when already solved
-  glowTimer = 120; // ✅ Canvas glow for 2s
+  solveBtn.style.display = "none"; 
+  glowTimer = 120; 
 }
 
-// ---------------- NEXT LEVEL ----------------
 nextBtn.addEventListener("click", () => {
   currentLevel++;
   if (currentLevel >= levels.length) currentLevel = 0;
   loadLevel(currentLevel);
 });
 
-// ---------------- SHOW SOLUTION ----------------
 solveBtn.addEventListener("click", () => {
   const target = levels[currentLevel].target;
   const slots = slotContainer.querySelectorAll(".slot");
@@ -1561,10 +1566,9 @@ solveBtn.addEventListener("click", () => {
     s.innerText = target[i].id;
     s.style.border = "2px solid #fff";
   });
-  triggerVictory(); // ✅ Auto win when showing solution
+  triggerVictory();
 });
 
-// ---------------- MESSAGE UI ----------------
 function showMessage(txt) {
   message.innerText = txt;
   message.style.opacity = txt ? 1 : 0;
@@ -1572,9 +1576,9 @@ function showMessage(txt) {
 
 // ---------------- DRAW LOOP ----------------
 function drawTargetShape() {
-  ctx.clearRect(0, 0, 400, 400);
+  ctx.clearRect(0, 0, 400, 350);
   ctx.save();
-  ctx.translate(200, 200);
+  ctx.translate(200, 175);
 
   // Target outline
   ctx.strokeStyle = "#fff";
@@ -1592,12 +1596,16 @@ function draw() {
     drawTargetShape();
     return;
   }
+  
+  if (typeof window.animationTime === 'undefined') {
+    window.animationTime = 0;
+  }
+  const t = window.animationTime;
 
-  ctx.clearRect(0, 0, 400, 400);
+  ctx.clearRect(0, 0, 400, 350);
   ctx.save();
-  ctx.translate(200, 200);
+  ctx.translate(200, 175);
 
-  // Target outline
   ctx.strokeStyle = "#fff";
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -1605,7 +1613,6 @@ function draw() {
   targetPoints.forEach(p => ctx.lineTo(p.x, p.y));
   ctx.stroke();
 
-  // Draw active epicycles
   const active = [];
   slotContainer.querySelectorAll(".slot").forEach(s => {
     if (s.dataset.id) {
@@ -1614,7 +1621,6 @@ function draw() {
     }
   });
 
-  // Initialize main trail if not exists
   if (!window.mainTrail) {
     window.mainTrail = [];
     window.mainTrailLength = 200; // Longer trail for main canvas
@@ -1622,7 +1628,6 @@ function draw() {
   
   let pos = { x: 0, y: 0 };
   active.forEach(c => {
-    // Draw orbit path
     ctx.strokeStyle = "rgba(128,128,128,0.2)";
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -1632,10 +1637,8 @@ function draw() {
     const next = { x: pos.x + c.r * Math.cos(c.f * t + c.p),
                    y: pos.y + c.r * Math.sin(c.f * t + c.p) };
     
-    // Update audio volume based on Y position (for main canvas)
     updateCircleVolume(c.id, next.y);
     
-    // Draw connecting line
     ctx.strokeStyle = "#fff";
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -1643,7 +1646,6 @@ function draw() {
     ctx.lineTo(next.x, next.y);
     ctx.stroke();
 
-    // Draw moving point
     ctx.fillStyle = c.color;
     ctx.beginPath();
     ctx.arc(next.x, next.y, 3, 0, Math.PI * 2);
@@ -1652,21 +1654,17 @@ function draw() {
     pos = next;
   });
   
-  // Add final position to main trail
   window.mainTrail.push({ x: pos.x, y: pos.y, t });
   if (window.mainTrail.length > window.mainTrailLength) {
     window.mainTrail.shift();
   }
   
-  // Draw main trail
   if (window.mainTrail.length > 1) {
-    // Check if solution is correct
     const targetIDs = levels[currentLevel].target.map(c => c.id);
     const activeIDs = active.map(c => c.id);
     const correctCircles = activeIDs.filter(id => targetIDs.includes(id)).length;
     const isCorrect = correctCircles === targetIDs.length;
     
-    // Draw trail with appropriate color
     ctx.strokeStyle = isCorrect ? "rgba(0,255,255,0.8)" : "rgba(255,100,100,0.8)";
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -1678,9 +1676,8 @@ function draw() {
   }
 
   ctx.restore();
-  t += 0.01;
+  window.animationTime += 0.01;
 
-  // ✅ Victory Glow
   if (glowTimer > 0) {
     canvas.style.boxShadow = "0 0 20px 5px #0ff";
     glowTimer--;
@@ -1690,14 +1687,12 @@ function draw() {
   drawAnimationId = requestAnimationFrame(draw);
 }
 
-// ---------------- START ----------------
 let isDrawing = false;
 let drawAnimationId = null;
 
 function startDrawing() {
   if (!isDrawing) {
     isDrawing = true;
-    // Clear main trail when starting to draw
     window.mainTrail = [];
     draw();
   }
@@ -1709,35 +1704,30 @@ function stopDrawing() {
     cancelAnimationFrame(drawAnimationId);
     drawAnimationId = null;
   }
-  // Clear main trail when stopping
   window.mainTrail = [];
-  // Draw just the target shape
   drawTargetShape();
 }
 
 function showVictoryModal() {
-  // Create modal overlay
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   
-  // Create modal content
   const modal = document.createElement('div');
   modal.className = 'victory-modal';
   
   modal.innerHTML = `
-    <div class="victory-title">🎉 Congratulations! 🎉</div>
+    <div class="victory-title"> Congratulations! </div>
     <div class="victory-message">
       You've attained the Rank of<br>
       <strong>Loop Master!</strong><br><br>
       You've mastered the art of epicycles and can now create any shape with the power of rotating circles!
     </div>
-    <a href="index.html" class="victory-btn">🏠 Return Home</a>
+    <a href="index.html" class="victory-btn">Return Home</a>
   `;
   
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
   
-  // Add click outside to close (optional)
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) {
       overlay.remove();
@@ -1746,7 +1736,7 @@ function showVictoryModal() {
 }
 
 loadLevel(0);
-draw(); // Start the animation loop (will only show target shape until check)
+draw(); 
 </script>
 </body>
 </html>
