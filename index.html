@@ -5,14 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Yay! Yay! Yay! Yay!</title>
     <script>
+        // Audio context and oscillator management
         let audioContext;
-        let oscillators = new Map(); 
-        let gainNodes = new Map();  
-        let pannerNodes = new Map(); 
-        let drumSamples = new Map(); 
-        let audioBuffers = []; 
-        let lastDrumTime = new Map(); 
-        window.audioEnabled = true;  
+        let oscillators = new Map(); // Map of circle ID to oscillator
+        let gainNodes = new Map();   // Map of circle ID to gain node
+        let pannerNodes = new Map(); // Map of circle ID to panner node
+        let drumSamples = new Map(); // Map of circle ID to assigned drum sample
+        let audioBuffers = []; // Array to store loaded audio buffers
+        let lastDrumTime = new Map(); // Track last drum hit time to prevent spam
+        window.audioEnabled = true;  // Global audio state
         
         // Load drum samples
         async function loadDrumSamples() {
@@ -26,7 +27,7 @@
                     const arrayBuffer = await response.arrayBuffer();
                     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
                     audioBuffers[i] = audioBuffer;
-
+                    console.log(`Loaded drum sample ${i + 1}`);
                 } catch (error) {
                     console.error(`Failed to load drum sample ${i + 1}:`, error);
                 }
@@ -37,36 +38,37 @@
         function initAudio() {
             if (!audioContext) {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
-
-
+                console.log('Audio context created, state:', audioContext.state);
+                // Resume audio context if it's suspended (required for autoplay policies)
                 if (audioContext.state === 'suspended') {
                     audioContext.resume().then(() => {
-    
+                        console.log('Audio context resumed');
                     });
                 }
-
+                // Load drum samples after context is created
                 loadDrumSamples();
             }
         }
         
-
+        // Create or update oscillator for a circle
         function updateCircleAudio(circle, isActive = true) {
             if (!window.audioEnabled) return;
             
-
+            // Initialize audio context if needed
             initAudio();
             
             if (!audioContext) return;
             
             const circleId = circle.id || circle.index;
             
-
+            // Remove existing audio if circle is no longer active
             if (!isActive) {
                 if (oscillators.has(circleId)) {
                     const oscillator = oscillators.get(circleId);
                     const gainNode = gainNodes.get(circleId);
                     
                     if (gainNode) {
+                        // Fade out over 0.5 seconds
                         gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.5);
                         setTimeout(() => {
                             oscillator.stop();
@@ -84,11 +86,13 @@
                 return;
             }
             
+            // Create oscillator if it doesn't exist
             if (!oscillators.has(circleId)) {
                 const oscillator = audioContext.createOscillator();
                 const gainNode = audioContext.createGain();
                 const pannerNode = audioContext.createStereoPanner();
                 
+                // Create a compressor to prevent clipping
                 const compressor = audioContext.createDynamicsCompressor();
                 compressor.threshold.setValueAtTime(-24, audioContext.currentTime);
                 compressor.knee.setValueAtTime(30, audioContext.currentTime);
@@ -96,33 +100,42 @@
                 compressor.attack.setValueAtTime(0.003, audioContext.currentTime);
                 compressor.release.setValueAtTime(0.25, audioContext.currentTime);
                 
+                // Connect the audio chain
                 oscillator.connect(gainNode);
                 gainNode.connect(pannerNode);
                 pannerNode.connect(compressor);
                 compressor.connect(audioContext.destination);
                 
+                // Store references
                 oscillators.set(circleId, oscillator);
                 gainNodes.set(circleId, gainNode);
                 pannerNodes.set(circleId, pannerNode);
                 
+                // Start the oscillator
                 oscillator.start();
             }
             
+            // Update parameters based on circle properties
             const oscillator = oscillators.get(circleId);
             const gainNode = gainNodes.get(circleId);
             const pannerNode = pannerNodes.get(circleId);
             
+            // Frequency mapping: baseNote + f*50 Hz (with range limiting)
             const baseNote = 220; // A3
-            const frequency = Math.max(20, Math.min(2000, baseNote + circle.f * 50)); 
+            const frequency = Math.max(20, Math.min(2000, baseNote + circle.f * 50)); // Clamp to 20-2000 Hz
             oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
             
+            // Store the base frequency for X position scaling
             circle.baseFrequency = frequency;
             
+            // Remove panning - set to center
             pannerNode.pan.setValueAtTime(0, audioContext.currentTime);
             
+            // Use sine wave for smooth, Glass-like tones
             oscillator.type = 'sine';
         }
         
+        // Update audio volume based on Y position (called from animation loop)
         function updateCircleVolume(circleId, yPosition, xPosition) {
             if (!gainNodes.has(circleId)) return;
             
@@ -131,29 +144,36 @@
             const circle = demoCircles[circleId];
             if (!circle || !oscillator) return;
             
+            // If audio is disabled, set volume to 0
             if (!window.audioEnabled) {
                 gainNode.gain.setValueAtTime(0, audioContext.currentTime);
                 return;
             }
             
+            // Map Y position to radius scaling: Y position as percentage of canvas height
             const canvasHeight = 400;
             const yPercentage = Math.max(0, Math.min(1, (yPosition + 200) / canvasHeight)); // 0 to 1
             
+            // Map X position to frequency scaling: X position as percentage of canvas width
             const canvasWidth = 400;
             const xPercentage = Math.max(0, Math.min(1, (xPosition + 200) / canvasWidth)); // 0 to 1
             
+            // Scale the radius by the Y percentage
             const scaledRadius = circle.r * yPercentage;
             const dynamicVolume = Math.max(0, Math.min(0.3, scaledRadius / 100 * 0.3)); // Clamp to 0-0.3
             
+            // Scale the frequency by the X percentage
             const baseFreq = circle.baseFrequency || 220;
             const scaledFrequency = Math.max(20, Math.min(2000, baseFreq * xPercentage)); // Clamp to 20-2000 Hz
             
+            // Smooth volume change with exponential smoothing to prevent popping
             const currentGain = gainNode.gain.value;
             const smoothedGain = currentGain * 0.9 + dynamicVolume * 0.1; // Smoothing factor
             
             gainNode.gain.setValueAtTime(smoothedGain, audioContext.currentTime);
             oscillator.frequency.setValueAtTime(scaledFrequency, audioContext.currentTime);
             
+            // Check if circle is in upright position and trigger drum
             const sinValue = Math.sin(circle.f * t + circle.p);
             const isUpright = sinValue < -0.9; // Close to the top
             if (isUpright) {
@@ -549,12 +569,12 @@
                 toggleBtn.textContent = '🔊';
                 toggleBtn.classList.remove('muted');
                 toggleBtn.title = 'Mute Audio';
-    
+                console.log('Audio enabled');
             } else {
                 toggleBtn.textContent = '🔇';
                 toggleBtn.classList.add('muted');
                 toggleBtn.title = 'Unmute Audio';
-
+                console.log('Audio disabled');
             }
         }
         
