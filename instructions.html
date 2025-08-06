@@ -147,17 +147,17 @@
         <h1>How to Play</h1>
         
         <div class="step">
-            <h2>🎯 The Goal</h2>
+            <h2>The Goal</h2>
             <p>You need to recreate the target shape by combining different rotating circles. Each circle has three properties:</p>
             <ul>
-                <li><span class="highlight">Radius (r)</span>: How big the circle's orbit is</li>
-                <li><span class="highlight">Frequency (f)</span>: How fast and in which direction it rotates</li>
-                <li><span class="highlight">Phase (p)</span>: Where it starts in its rotation</li>
+                <li><span class="highlight">Radius</span>: How big the circle's orbit is</li>
+                <li><span class="highlight">Frequency</span>: How fast and in which direction it rotates</li>
+                <li><span class="highlight">Phase</span>: Where it starts in its rotation</li>
             </ul>
         </div>
         
         <div class="step">
-            <h2>🔍 Understanding the Target</h2>
+            <h2>Understanding the Target</h2>
             <div class="demo-container">
                 <canvas id="targetCanvas" class="demo-canvas" width="300" height="300"></canvas>
                 <div class="demo-text">
@@ -167,7 +167,7 @@
                             <canvas id="circle1" width="60" height="60"></canvas>
                         </div>
                         <div style="flex: 1;">
-                            <strong>Circle 1:</strong> Large green circle (r=80, f=1, p=0)<br>
+                            <strong>Circle 1:</strong> Large green circle<br>
                             Starts at the center and creates the main elliptical path
                         </div>
                     </div>
@@ -176,7 +176,7 @@
                             <canvas id="circle2" width="60" height="60"></canvas>
                         </div>
                         <div style="flex: 1;">
-                            <strong>Circle 2:</strong> Small yellow circle (r=40, f=-1, p=1.2)<br>
+                            <strong>Circle 2:</strong> Small yellow circle<br>
                             Rotates around Circle 1's position, creating the final shape
                         </div>
                     </div>
@@ -185,15 +185,15 @@
         </div>
         
         <div class="step">
-            <h2>🎮 The Gameplay</h2>
-            <p>1. <strong>Choose circles:</strong> You'll see animated previews of each circle's motion</p>
+            <h2>The Gameplay</h2>
+            <p>1. <strong>Choose circles:</strong>You'll see animated previews of each circle's motion</p>
             <p>2. <strong>Drag and drop:</strong> Place the correct circles in the slots</p>
             <p>3. <strong>Check your solution:</strong> Click "Check Solution" to see how your circles combine</p>
             <p>4. <strong>Get feedback:</strong> You'll see how many circles are correct</p>
         </div>
         
         <div class="step">
-            <h2>🎲 Mastermind-Style Feedback</h2>
+            <h2>Mastermind-Style Feedback</h2>
             <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
                 <div style="display: flex; gap: 10px;">
                     <div style="width: 15px; height: 15px; background: #0f0; border-radius: 50%;"></div>
@@ -208,7 +208,7 @@
         </div>
         
         <div class="tip">
-            <strong>💡 Tip:</strong> Start by looking at the target shape. Is it round? Pointy? How many loops does it have? This will help you guess which circles to use!
+            <strong>Tip:</strong> Start by looking at the target shape. Is it round? Pointy? How many loops does it have? This will help you guess which circles to use!
         </div>
         
         <div style="text-align: center; margin: 40px 0;">
@@ -217,31 +217,25 @@
     </div>
 
     <script>
-        // Animation for the target shape
         const targetCanvas = document.getElementById('targetCanvas');
         const targetCtx = targetCanvas.getContext('2d');
         
-        // Circle 1 animation
         const circle1Canvas = document.getElementById('circle1');
         const circle1Ctx = circle1Canvas.getContext('2d');
         
-        // Circle 2 animation
         const circle2Canvas = document.getElementById('circle2');
         const circle2Ctx = circle2Canvas.getContext('2d');
         
         let t = 0;
         
         function animate() {
-            // Clear canvases
             targetCtx.clearRect(0, 0, 300, 300);
             circle1Ctx.clearRect(0, 0, 60, 60);
             circle2Ctx.clearRect(0, 0, 60, 60);
             
-            // Draw target shape with chained epicycles
             targetCtx.save();
             targetCtx.translate(150, 150);
             
-            // Draw the complete ellipse path
             targetCtx.strokeStyle = "#fff";
             targetCtx.lineWidth = 1;
             targetCtx.beginPath();
@@ -256,21 +250,17 @@
             targetCtx.closePath();
             targetCtx.stroke();
             
-            // Draw chained epicycles
             let pos = { x: 0, y: 0 };
             
-            // Circle 1: rotates around origin
             const circle1X = 80 * Math.cos(t);
             const circle1Y = 80 * Math.sin(t);
             
-            // Draw circle 1 orbit
             targetCtx.strokeStyle = "rgba(128,128,128,0.2)";
             targetCtx.lineWidth = 1;
             targetCtx.beginPath();
             targetCtx.arc(pos.x, pos.y, 80, 0, Math.PI * 2);
             targetCtx.stroke();
             
-            // Draw connecting line to circle 1
             targetCtx.strokeStyle = "#fff";
             targetCtx.lineWidth = 2;
             targetCtx.beginPath();
@@ -278,7 +268,6 @@
             targetCtx.lineTo(circle1X, circle1Y);
             targetCtx.stroke();
             
-            // Draw circle 1 point
             targetCtx.fillStyle = "#0f0";
             targetCtx.beginPath();
             targetCtx.arc(circle1X, circle1Y, 3, 0, Math.PI * 2);
