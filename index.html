@@ -4,472 +4,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Yay! Yay! Yay! Yay!</title>
-    <script>
-        // Audio context and oscillator management
-        let audioContext;
-        let oscillators = new Map(); // Map of circle ID to oscillator
-        let gainNodes = new Map();   // Map of circle ID to gain node
-        let pannerNodes = new Map(); // Map of circle ID to panner node
-        let drumSamples = new Map(); // Map of circle ID to assigned drum sample
-        let audioBuffers = []; // Array to store loaded audio buffers
-        let lastDrumTime = new Map(); // Track last drum hit time to prevent spam
-        window.audioEnabled = true;  // Global audio state
-        
-        // Load drum samples
-        async function loadDrumSamples() {
-            if (!audioContext) return;
-            
-            const sampleFiles = ['1.wav', '2.wav', '3.wav', '4.wav', '5.wav'];
-            
-            for (let i = 0; i < sampleFiles.length; i++) {
-                try {
-                    const response = await fetch(sampleFiles[i]);
-                    const arrayBuffer = await response.arrayBuffer();
-                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-                    audioBuffers[i] = audioBuffer;
-                    console.log(`Loaded drum sample ${i + 1}`);
-                } catch (error) {
-                    console.error(`Failed to load drum sample ${i + 1}:`, error);
-                }
-            }
-        }
-        
-        // Initialize audio context
-        function initAudio() {
-            if (!audioContext) {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                console.log('Audio context created, state:', audioContext.state);
-                // Resume audio context if it's suspended (required for autoplay policies)
-                if (audioContext.state === 'suspended') {
-                    audioContext.resume().then(() => {
-                        console.log('Audio context resumed');
-                    });
-                }
-                // Load drum samples after context is created
-                loadDrumSamples();
-            }
-        }
-        
-        // Create or update oscillator for a circle
-        function updateCircleAudio(circle, isActive = true) {
-            if (!window.audioEnabled) return;
-            
-            // Initialize audio context if needed
-            initAudio();
-            
-            if (!audioContext) return;
-            
-            const circleId = circle.id || circle.index;
-            
-            // Remove existing audio if circle is no longer active
-            if (!isActive) {
-                if (oscillators.has(circleId)) {
-                    const oscillator = oscillators.get(circleId);
-                    const gainNode = gainNodes.get(circleId);
-                    
-                    if (gainNode) {
-                        // Fade out over 0.5 seconds
-                        gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.5);
-                        setTimeout(() => {
-                            oscillator.stop();
-                            oscillators.delete(circleId);
-                            gainNodes.delete(circleId);
-                            pannerNodes.delete(circleId);
-                        }, 500);
-                    } else {
-                        oscillator.stop();
-                        oscillators.delete(circleId);
-                        gainNodes.delete(circleId);
-                        pannerNodes.delete(circleId);
-                    }
-                }
-                return;
-            }
-            
-            // Create oscillator if it doesn't exist
-            if (!oscillators.has(circleId)) {
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
-                const pannerNode = audioContext.createStereoPanner();
-                
-                // Create a compressor to prevent clipping
-                const compressor = audioContext.createDynamicsCompressor();
-                compressor.threshold.setValueAtTime(-24, audioContext.currentTime);
-                compressor.knee.setValueAtTime(30, audioContext.currentTime);
-                compressor.ratio.setValueAtTime(12, audioContext.currentTime);
-                compressor.attack.setValueAtTime(0.003, audioContext.currentTime);
-                compressor.release.setValueAtTime(0.25, audioContext.currentTime);
-                
-                // Connect the audio chain
-                oscillator.connect(gainNode);
-                gainNode.connect(pannerNode);
-                pannerNode.connect(compressor);
-                compressor.connect(audioContext.destination);
-                
-                // Store references
-                oscillators.set(circleId, oscillator);
-                gainNodes.set(circleId, gainNode);
-                pannerNodes.set(circleId, pannerNode);
-                
-                // Start the oscillator
-                oscillator.start();
-            }
-            
-            // Update parameters based on circle properties
-            const oscillator = oscillators.get(circleId);
-            const gainNode = gainNodes.get(circleId);
-            const pannerNode = pannerNodes.get(circleId);
-            
-            // Frequency mapping: baseNote + f*50 Hz (with range limiting)
-            const baseNote = 220; // A3
-            const frequency = Math.max(20, Math.min(2000, baseNote + circle.f * 50)); // Clamp to 20-2000 Hz
-            oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
-            
-            // Store the base frequency for X position scaling
-            circle.baseFrequency = frequency;
-            
-            // Remove panning - set to center
-            pannerNode.pan.setValueAtTime(0, audioContext.currentTime);
-            
-            // Use sine wave for smooth, Glass-like tones
-            oscillator.type = 'sine';
-        }
-        
-        // Update audio volume based on Y position (called from animation loop)
-        function updateCircleVolume(circleId, yPosition, xPosition) {
-            if (!gainNodes.has(circleId)) return;
-            
-            const gainNode = gainNodes.get(circleId);
-            const oscillator = oscillators.get(circleId);
-            const circle = demoCircles[circleId];
-            if (!circle || !oscillator) return;
-            
-            // If audio is disabled, set volume to 0
-            if (!window.audioEnabled) {
-                gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-                return;
-            }
-            
-            // Map Y position to radius scaling: Y position as percentage of canvas height
-            const canvasHeight = 400;
-            const yPercentage = Math.max(0, Math.min(1, (yPosition + 200) / canvasHeight)); // 0 to 1
-            
-            // Map X position to frequency scaling: X position as percentage of canvas width
-            const canvasWidth = 400;
-            const xPercentage = Math.max(0, Math.min(1, (xPosition + 200) / canvasWidth)); // 0 to 1
-            
-            // Scale the radius by the Y percentage
-            const scaledRadius = circle.r * yPercentage;
-            const dynamicVolume = Math.max(0, Math.min(0.3, scaledRadius / 100 * 0.3)); // Clamp to 0-0.3
-            
-            // Scale the frequency by the X percentage
-            const baseFreq = circle.baseFrequency || 220;
-            const scaledFrequency = Math.max(20, Math.min(2000, baseFreq * xPercentage)); // Clamp to 20-2000 Hz
-            
-            // Smooth volume change with exponential smoothing to prevent popping
-            const currentGain = gainNode.gain.value;
-            const smoothedGain = currentGain * 0.9 + dynamicVolume * 0.1; // Smoothing factor
-            
-            gainNode.gain.setValueAtTime(smoothedGain, audioContext.currentTime);
-            oscillator.frequency.setValueAtTime(scaledFrequency, audioContext.currentTime);
-            
-            // Check if circle is in upright position and trigger drum
-            const sinValue = Math.sin(circle.f * t + circle.p);
-            const isUpright = sinValue < -0.9; // Close to the top
-            if (isUpright) {
-                createDrumSound(circleId, circle.f);
-            }
-        }
-        
-        // Create a drum sound for a circle
-        function createDrumSound(circleId, frequency) {
-            if (!audioContext || !window.audioEnabled) return;
-            
-            // Prevent drum spam - only trigger once per 0.3 seconds
-            const now = audioContext.currentTime;
-            const lastHit = lastDrumTime.get(circleId) || 0;
-            if (now - lastHit < 0.3) return;
-            lastDrumTime.set(circleId, now);
-            
-            // Get the assigned drum sample for this circle
-            let sampleIndex = drumSamples.get(circleId);
-            if (sampleIndex === undefined) {
-                // Assign a random sample if none assigned yet
-                sampleIndex = Math.floor(Math.random() * 5);
-                drumSamples.set(circleId, sampleIndex);
-            }
-            
-            // Check if we have the sample loaded
-            if (!audioBuffers[sampleIndex]) return;
-            
-            // Create audio buffer source for the drum sample
-            const drumSource = audioContext.createBufferSource();
-            const drumGain = audioContext.createGain();
-            
-            // Connect drum audio chain
-            drumSource.connect(drumGain);
-            drumGain.connect(audioContext.destination);
-            
-            // Set the buffer to the loaded sample
-            drumSource.buffer = audioBuffers[sampleIndex];
-            
-            // Adjust playback rate based on frequency (optional)
-            const playbackRate = 1.0 + (Math.abs(frequency) - 1) * 0.1; // Slight variation
-            drumSource.playbackRate.setValueAtTime(playbackRate, now);
-            
-            // Set volume
-            drumGain.gain.setValueAtTime(0.4, now);
-            
-            // Start the drum sample
-            drumSource.start(now);
-        }
-    </script>
-    <style>
-        body { 
-            background: #111; 
-            color: #fff; 
-            font-family: sans-serif; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center;
-            margin: 0;
-            padding: 20px;
-            min-height: 100vh;
-            box-sizing: border-box;
-        }
-        
-        .logo {
-            width: 800px;
-            height: 80px;
-            margin: 40px 0;
-        }
-        
-        .title {
-            font-size: clamp(32px, 8vw, 48px);
-            margin: 20px 0;
-            text-align: center;
-            background: linear-gradient(45deg, #ff0, #0f0);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            text-shadow: 0 0 20px rgba(255,255,0,0.5);
-        }
-        
-        .subtitle {
-            font-size: clamp(18px, 4vw, 24px);
-            margin: 10px 0 20px 0;
-            text-align: center;
-            color: #aaa;
-            font-style: italic;
-        }
-        
-        .demo-canvas {
-            background: #000;
-            border: 4px solid #444;
-            border-radius: 12px;
-            margin: 20px 0 40px 0;
-            box-shadow: 0 0 20px rgba(0,255,255,0.3);
-            position: relative;
-        }
-        
-        .audio-toggle {
-            position: absolute;
-            top: 30px;
-            right: 10px;
-            width: 50px;
-            height: 50px;
-            background: rgba(0,0,0,0.7);
-            border: 2px solid #fff;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #fff;
-            font-size: 16px;
-            transition: all 0.3s ease;
-            z-index: 10;
-        }
-        
-        .audio-toggle:hover {
-            background: rgba(255,255,255,0.2);
-            transform: scale(1.1);
-        }
-        
-        .audio-toggle.muted {
-            opacity: 0.5;
-        }
-        
-        .button-container {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            width: 100%;
-            max-width: 400px;
-        }
-        
-        .button-row {
-            display: flex;
-            gap: 20px;
-        }
-
-        .button-row a {
-            width: 50%;
-        }
-        
-        .nav-button {
-            padding: 20px 20px;
-            font-size: clamp(18px, 4vw, 24px);
-            border: none;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            color: #000;
-            text-align: center;
-            font-weight: bold;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-        }
-        
-        .nav-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0,0,0,0.4);
-        }
-        
-        .instructions-btn {
-            background: #deff00;
-            -webkit-box-shadow:0px 0px 11px 6px rgba(77,18,31,0.9);
-            -moz-box-shadow: 0px 0px 11px 6px rgba(7,18,31,0.9);
-            box-shadow: 0px 0px 11px 6px rgba(77,18,31,0.9);
-        }
-        
-        .game-btn {
-            background: #deff00;
-            -webkit-box-shadow:0px 0px 11px 6px rgba(77,18,31,0.9);
-            -moz-box-shadow: 0px 0px 11px 6px rgba(7,18,31,0.9);
-            box-shadow: 0px 0px 11px 6px rgba(77,18,31,0.9);
-        }
-        
-        .playground-btn {
-            background: #deff00;
-            -webkit-box-shadow:0px 0px 11px 6px rgba(77,18,31,0.9);
-            -moz-box-shadow: 0px 0px 11px 6px rgba(7,18,31,0.9);
-            box-shadow: 0px 0px 11px 6px rgba(77,18,31,0.9);
-        }
-        
-        @media (max-width: 600px) {
-            .logo {
-                width: 100%;
-                max-width: 500px;
-                height: auto;
-            }
-            
-            .demo-canvas {
-                width: 100%;
-                max-width: 350px;
-                height: auto;
-            }
-            
-            .button-container {
-                max-width: 300px;
-            }
-            
-            .nav-button {
-                padding: 15px 15px;
-            }
-        }
-
-        .button-container a {
-            border: 2px solid gold;
-            border-radius: 10px;
-            background: gold;
-            cursor: pointer;
-        }
-        .button-container a:hover {
-            filter: contrast(1.1);
-        }
-        .button-container a:active {
-            filter: contrast(0.9);
-        }
-        .button-container a::before, nav-button::after {
-            content: "";
-            position: absolute;
-            top: -10px;
-            left: -10px;
-            right: -10px;
-            bottom: -10px;
-            border: 2px solid gold;
-            transition: all 0.5s;
-            -webkit-animation: clippath 3s infinite linear;
-                    animation: clippath 3s infinite linear;
-            border-radius: 10px;
-        }
-        .button-container a::after {
-            -webkit-animation: clippath 3s infinite -1.5s linear;
-                    animation: clippath 3s infinite -1.5s linear;
-        }
-
-        @-webkit-keyframes clippath {
-            0%, 100% {
-                -webkit-clip-path: inset(0 0 98% 0);
-                        clip-path: inset(0 0 98% 0);
-            }
-            25% {
-                -webkit-clip-path: inset(0 98% 0 0);
-                        clip-path: inset(0 98% 0 0);
-            }
-            50% {
-                -webkit-clip-path: inset(98% 0 0 0);
-                        clip-path: inset(98% 0 0 0);
-            }
-            75% {
-                -webkit-clip-path: inset(0 0 0 98%);
-                        clip-path: inset(0 0 0 98%);
-            }
-        }
-
-        @keyframes clippath {
-            0%, 100% {
-                -webkit-clip-path: inset(0 0 98% 0);
-                        clip-path: inset(0 0 98% 0);
-            }
-            25% {
-                -webkit-clip-path: inset(0 98% 0 0);
-                        clip-path: inset(0 98% 0 0);
-            }
-            50% {
-                -webkit-clip-path: inset(98% 0 0 0);
-                        clip-path: inset(98% 0 0 0);
-            }
-            75% {
-                -webkit-clip-path: inset(0 0 0 98%);
-                        clip-path: inset(0 0 0 98%);
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
     <img src="logo.png" alt="Yay! Yay! Yay! Yay!" class="logo">
     
-    <div style="position: relative; display: inline-block;">
-        <canvas id="demoCanvas" class="demo-canvas" width="400" height="400"></canvas>
+    <div class="canvas-container">
+        <canvas id="demoCanvas" width="400" height="400"></canvas>
         <div id="audioToggle" class="audio-toggle" title="Toggle Audio">🔊</div>
     </div>
     
-    <div class="button-container">
-        <a href="game.html" class="nav-button game-btn">Game</a>
-        <div class="button-row">
-            <a href="instructions.html" class="nav-button instructions-btn">Instructions</a>
-            <a href="playground.html" class="nav-button playground-btn">Playground</a>
+    <div class="container">
+        <a href="game.html" class="button">Game</a>
+        <div style="display: flex; gap: 20px;">
+            <a href="instructions.html" class="button">Instructions</a>
+            <a href="playground.html" class="button">Playground</a>
         </div>
     </div>
 
-    <script>
-        // Demo animation with complex shape
+    <script type="module">
+        import { initAudio, updateCircleAudio, updateCircleVolume } from './js/audio.js';
+
         const canvas = document.getElementById('demoCanvas');
         const ctx = canvas.getContext('2d');
         
-        // Complex shape data (similar to game format)
+        // Demo animation with complex shape
         const demoCircles = [
             { r: 80, f: 1, p: 0, color: '#0f0', index: 0 },
             { r: 50, f: -2, p: 1.2, color: '#ff0', index: 1 },
@@ -569,12 +128,10 @@
                 toggleBtn.textContent = '🔊';
                 toggleBtn.classList.remove('muted');
                 toggleBtn.title = 'Mute Audio';
-                console.log('Audio enabled');
             } else {
                 toggleBtn.textContent = '🔇';
                 toggleBtn.classList.add('muted');
                 toggleBtn.title = 'Unmute Audio';
-                console.log('Audio disabled');
             }
         }
         
@@ -585,7 +142,7 @@
         
         // Add event listener for audio toggle button
         document.getElementById('audioToggle').addEventListener('click', function(e) {
-            e.stopPropagation(); // Prevent triggering the general click handler
+            e.stopPropagation();
             toggleAudio();
         });
         

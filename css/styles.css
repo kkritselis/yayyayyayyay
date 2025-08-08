@@ -1,0 +1,233 @@
+/* Base styles */
+body { 
+    background: #111; 
+    color: #fff; 
+    font-family: sans-serif; 
+    margin: 0;
+    padding: 20px;
+    min-height: 100vh;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Logo */
+.logo {
+    width: 100%;
+    max-width: 800px;
+    margin-bottom: 20px;
+}
+
+/* Typography */
+h1 { 
+    font-size: clamp(24px, 5vw, 32px);
+    margin: 10px 0;
+    text-align: center;
+}
+
+h2 {
+    font-size: clamp(18px, 4vw, 24px);
+    margin: 5px 0 15px 0;
+    text-align: center;
+}
+
+/* Canvas styles */
+.canvas-container {
+    position: relative;
+    display: inline-block;
+    margin: 20px 0;
+}
+
+canvas { 
+    background: #000; 
+    border: 4px solid #444; 
+    border-radius: 12px;
+    margin: 20px 0;
+    transition: border 0.3s, box-shadow 0.3s;
+    max-width: 100%;
+    height: auto;
+}
+
+/* Audio toggle button */
+.audio-toggle {
+    position: absolute;
+    top: 30px;
+    right: 10px;
+    width: 50px;
+    height: 50px;
+    background: rgba(0,0,0,0.7);
+    border: 2px solid #fff;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 16px;
+    transition: all 0.3s ease;
+    z-index: 10;
+}
+
+.audio-toggle:hover {
+    background: rgba(255,255,255,0.2);
+    transform: scale(1.1);
+}
+
+.audio-toggle.muted {
+    opacity: 0.5;
+}
+
+/* Button styles */
+.button {
+    padding: 10px 20px;
+    background: #0ff;
+    color: #000;
+    border: none;
+    border-radius: 6px;
+    font-size: clamp(16px, 3vw, 18px);
+    cursor: pointer;
+    margin: 5px;
+    min-width: 120px;
+    transition: all 0.3s ease;
+}
+
+.button:hover {
+    background: #7ff;
+    transform: translateY(-2px);
+}
+
+/* Container layouts */
+.container {
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+/* Circle and slot styles */
+.circle { 
+    cursor: grab; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    position: relative;
+    width: 100px;
+    height: 100px;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    background: #1a1a1a;
+    border-radius: 8px;
+    padding: 5px;
+    border: 1px solid #333;
+}
+
+.circle.dragging { 
+    opacity: 0.9; 
+    position: fixed; 
+    pointer-events: none; 
+    z-index: 1000; 
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+}
+
+.slot { 
+    width: 100px; 
+    height: 100px; 
+    border: 2px dashed #555; 
+    border-radius: 8px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    color: #888; 
+    font-size: 12px;
+    background: #1a1a1a;
+    padding: 0;
+    position: relative;
+    overflow: hidden;
+    touch-action: none;
+    user-select: none;
+}
+
+.slot.dragover:not(.locked) { 
+    border-color: #fff; 
+    background: rgba(255,255,255,0.1);
+}
+
+.slot.locked {
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+/* Message styles */
+.message { 
+    font-size: clamp(18px, 4vw, 24px);
+    margin: 10px; 
+    opacity: 0; 
+    transition: opacity 0.3s;
+    text-align: center;
+    background: rgba(0,0,0,0.8);
+    padding: 15px;
+    border-radius: 8px;
+    white-space: pre-line;
+}
+
+/* Modal styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    animation: fadeIn 0.5s ease-out;
+}
+
+.modal {
+    background: #222;
+    border: 3px solid #0ff;
+    border-radius: 15px;
+    padding: 40px;
+    text-align: center;
+    max-width: 500px;
+    margin: 20px;
+    box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+    animation: fadeIn 0.5s ease-out;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Responsive styles */
+@media (max-width: 600px) {
+    .container {
+        gap: 10px;
+    }
+
+    .circle, .slot {
+        width: 80px;
+        height: 80px;
+    }
+
+    canvas {
+        width: 100%;
+        max-height: 50vh;
+    }
+
+    .logo {
+        width: 100%;
+        max-width: 500px;
+        height: auto;
+    }
+}

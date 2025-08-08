@@ -1,0 +1,1742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yay! Yay! Yay! Yay!</title>
+    <script>
+        
+        let audioContext;
+        let oscillators = new Map();
+        let gainNodes = new Map();  
+        let pannerNodes = new Map(); 
+        let drumSamples = new Map(); 
+        let audioBuffers = []; 
+        let lastDrumTime = new Map(); 
+        let fadeInStartTime = new Map(); 
+        window.audioEnabled = true; 
+        
+        // Load drum samples
+        async function loadDrumSamples() {
+            if (!audioContext) return;
+            
+            const sampleFiles = ['1.wav', '2.wav', '3.wav', '4.wav', '5.wav'];
+            
+            for (let i = 0; i < sampleFiles.length; i++) {
+                try {
+                    const response = await fetch(sampleFiles[i]);
+                    const arrayBuffer = await response.arrayBuffer();
+                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    audioBuffers[i] = audioBuffer;
+
+                } catch (error) {
+                    console.error(`Failed to load drum sample ${i + 1}:`, error);
+                }
+            }
+        }
+        
+        // Initialize audio context
+        function initAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+                if (audioContext.state === 'suspended') {
+                    audioContext.resume().then(() => {
+    
+                    });
+                }
+
+                loadDrumSamples();
+            }
+        }
+        
+
+        function updateCircleAudio(circle, isActive = true, fadeIn = false) {
+            if (!window.audioEnabled) return;
+            
+            // Initialize audio context
+            initAudio();
+            
+            if (!audioContext) return;
+            
+            const circleId = circle.id;
+            
+            // Remove existing audiio if circle is no longer active
+            if (!isActive) {
+                if (oscillators.has(circleId)) {
+                    const oscillator = oscillators.get(circleId);
+                    const gainNode = gainNodes.get(circleId);
+                    
+                    if (gainNode) {
+                        // Fade over 0.5 seconds
+                        gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.5);
+                        setTimeout(() => {
+                            oscillator.stop();
+                            oscillators.delete(circleId);
+                            gainNodes.delete(circleId);
+                            pannerNodes.delete(circleId);
+                        }, 500);
+                    } else {
+                        oscillator.stop();
+                        oscillators.delete(circleId);
+                        gainNodes.delete(circleId);
+                        pannerNodes.delete(circleId);
+                    }
+                }
+                return;
+            }
+            
+            // Create oscillator
+            if (!oscillators.has(circleId)) {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                const pannerNode = audioContext.createStereoPanner();
+                
+                const compressor = audioContext.createDynamicsCompressor();
+                compressor.threshold.setValueAtTime(-24, audioContext.currentTime);
+                compressor.knee.setValueAtTime(30, audioContext.currentTime);
+                compressor.ratio.setValueAtTime(12, audioContext.currentTime);
+                compressor.attack.setValueAtTime(0.003, audioContext.currentTime);
+                compressor.release.setValueAtTime(0.25, audioContext.currentTime);
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(pannerNode);
+                pannerNode.connect(compressor);
+                compressor.connect(audioContext.destination);
+                
+                oscillators.set(circleId, oscillator);
+                gainNodes.set(circleId, gainNode);
+                pannerNodes.set(circleId, pannerNode);
+                
+                oscillator.start();
+                
+                if (fadeIn) {
+                    
+                    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+                    gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 3);
+                    fadeInStartTime.set(circleId, audioContext.currentTime);
+                }
+            }
+            
+            const oscillator = oscillators.get(circleId);
+            const gainNode = gainNodes.get(circleId);
+            const pannerNode = pannerNodes.get(circleId);
+            
+            const baseNote = 220; // A3
+            const frequency = Math.max(20, Math.min(2000, baseNote + circle.f * 50)); // Clamp to 20-2000 Hz
+            oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+            
+            pannerNode.pan.setValueAtTime(0, audioContext.currentTime);
+            
+            oscillator.type = 'sine';
+            
+        }
+        
+        // Create a drum sound for a circle
+        function createDrumSound(circleId, frequency) {
+            if (!audioContext || !window.audioEnabled) return;
+            
+            const now = audioContext.currentTime;
+            const lastHit = lastDrumTime.get(circleId) || 0;
+            if (now - lastHit < 0.3) return;
+            lastDrumTime.set(circleId, now);
+            
+            let sampleIndex = drumSamples.get(circleId);
+            if (sampleIndex === undefined) {
+                
+                sampleIndex = Math.floor(Math.random() * 5);
+                drumSamples.set(circleId, sampleIndex);
+            }
+            
+            if (!audioBuffers[sampleIndex]) return;
+            
+            const drumSource = audioContext.createBufferSource();
+            const drumGain = audioContext.createGain();
+            
+            drumSource.connect(drumGain);
+            drumGain.connect(audioContext.destination);
+            
+            drumSource.buffer = audioBuffers[sampleIndex];
+            
+            const playbackRate = 1.0 + (Math.abs(frequency) - 1) * 0.1;
+            drumSource.playbackRate.setValueAtTime(playbackRate, now);
+            
+            drumGain.gain.setValueAtTime(0.4, now);
+            
+            drumSource.start(now);
+        }
+        
+        function updateCircleVolume(circleId, yPosition) {
+            if (!window.audioEnabled || !gainNodes.has(circleId)) return;
+            
+            const gainNode = gainNodes.get(circleId);
+            const circle = circles.find(c => c.id === circleId);
+            if (!circle) return;
+            
+            const canvasHeight = 80;
+            const yPercentage = Math.max(0, Math.min(1, (yPosition + 40) / canvasHeight)); 
+            
+            const scaledRadius = circle.r * yPercentage;
+            const dynamicVolume = Math.max(0, Math.min(0.3, scaledRadius / 100 * 0.3));
+            
+            const fadeStart = fadeInStartTime.get(circleId);
+            const fadeInDuration = 3;
+            const isInFadeIn = fadeStart && (audioContext.currentTime - fadeStart) < fadeInDuration;
+            
+            if (!isInFadeIn) {
+                const currentGain = gainNode.gain.value;
+                const smoothedGain = currentGain * 0.9 + dynamicVolume * 0.1; 
+                gainNode.gain.setValueAtTime(smoothedGain, audioContext.currentTime);
+            }
+
+            const globalT = window.animationTime || 0;
+            const circleX = circle.r * Math.cos(circle.f * globalT + circle.p);
+            const circleY = circle.r * Math.sin(circle.f * globalT + circle.p);
+            
+            const isUpright = Math.abs(circleX) < 10 && circleY < 10; 
+            
+            
+            if (isUpright) {
+                createDrumSound(circleId, circle.f);
+
+            }
+        }
+        
+        function updateAllAudio(activeCircles) {
+            if (!window.audioEnabled) return;
+            
+
+            
+            oscillators.forEach((osc, id) => {
+                osc.stop();
+            });
+            oscillators.clear();
+            gainNodes.clear();
+            pannerNodes.clear();
+            
+            activeCircles.forEach(circle => {
+                updateCircleAudio(circle, true, true); 
+            });
+        }
+        
+        function stopAllAudio() {
+            const fadeOutTime = 0.5; 
+            
+            oscillators.forEach((osc, id) => {
+                const gainNode = gainNodes.get(id);
+                if (gainNode) {
+                    gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + fadeOutTime);
+                    setTimeout(() => {
+                        if (osc) {
+                            osc.stop();
+                        }
+                    }, fadeOutTime * 1000);
+                } else {
+                    osc.stop();
+                }
+            });
+            
+            setTimeout(() => {
+                oscillators.clear();
+                gainNodes.clear();
+                pannerNodes.clear();
+                drumSamples.clear();
+                lastDrumTime.clear();
+                fadeInStartTime.clear();
+            }, fadeOutTime * 1000);
+        }
+    </script>
+    <style>
+        body { 
+            background:#111; 
+            color:#fff; 
+            font-family:sans-serif; 
+            display:flex; 
+            flex-direction:column; 
+            align-items:center;
+            margin: 0;
+            padding: 10px;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        h1 { 
+            font-size: clamp(24px, 5vw, 32px);
+            margin: 10px 0;
+            text-align: center;
+        }
+        h2 {
+            font-size: clamp(18px, 4vw, 24px);
+            margin: 5px 0 15px 0;
+            text-align: center;
+        }
+        #container { 
+            display: flex; 
+            gap: 20px; 
+            margin-top: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            width: 100%;
+            max-width: 800px;
+        }
+        .circleBox, .slots { 
+            background: #222; 
+            padding: 10px; 
+            border-radius: 8px; 
+            display: flex; 
+            flex-wrap: wrap; 
+            gap: 10px; 
+            width: min(250px, calc(100% - 20px));
+            min-height: 60px;
+            justify-content: center;
+            align-content: flex-start;
+        }
+        .circle { 
+            cursor: grab; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            position: relative;
+            width: 100px;
+            height: 100px;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+            background: #1a1a1a;
+            border-radius: 8px;
+            padding: 5px;
+            border: 1px solid #333;
+        }
+        
+        @media (max-width: 600px) {
+            .circle {
+                width: 80px;
+                height: 80px;
+            }
+        }
+        .circle canvas {
+            width: 100%;
+            height: 100%;
+            border: none;
+            margin: 0;
+            background: transparent;
+        }
+        .circle.dragging { 
+            opacity: 0.9; 
+            position: fixed; 
+            pointer-events: none; 
+            z-index: 1000; 
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+        .slot { 
+            width: 100px; 
+            height: 100px; 
+            border: 2px dashed #555; 
+            border-radius: 8px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            color: #888; 
+            font-size: 12px;
+            background: #1a1a1a;
+            padding: 0;
+            position: relative;
+            overflow: hidden;
+            touch-action: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        
+        @media (max-width: 600px) {
+            .slot {
+                width: 80px;
+                height: 80px;
+            }
+        }
+        .slot canvas {
+            width: 100%;
+            height: 100%;
+            border: none;
+            margin: 0;
+            display: none;
+        }
+        .slot.filled canvas {
+            display: block;
+        }
+        .slot.filled .placeholder {
+            display: none;
+        }
+        .slot .placeholder {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1;
+        }
+        .slot.dragover:not(.locked) { 
+            border-color: #fff; 
+            background: rgba(255,255,255,0.1);
+        }
+        .slot.locked {
+            pointer-events: none;
+            opacity: 0.8;
+        }
+        canvas { 
+            background: #000; 
+            border: 4px solid #444; 
+            margin: 20px 0;
+            transition: border 0.3s, box-shadow 0.3s;
+            max-width: 100%;
+            height: auto;
+            position: relative;
+        }
+        
+        .audio-toggle {
+            position: absolute;
+            top: 30px;
+            right: 10px;
+            width: 50px;
+            height: 50px;
+            background: rgba(0,0,0,0.7);
+            border: 2px solid #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+        
+        .audio-toggle:hover {
+            background: rgba(255,255,255,0.2);
+            transform: scale(1.1);
+        }
+        
+        .audio-toggle.muted {
+            opacity: 0.5;
+        }
+        #message { 
+            font-size: clamp(18px, 4vw, 24px);
+            margin: 10px; 
+            opacity: 0; 
+            transition: opacity 0.3s;
+            text-align: center;
+            background: rgba(0,0,0,0.8);
+            padding: 15px;
+            border-radius: 8px;
+            white-space: pre-line;
+        }
+        #nextBtn, #solveBtn { 
+            padding: 10px 20px; 
+            background: #0ff; 
+            color: #000; 
+            border: none; 
+            border-radius: 6px; 
+            font-size: clamp(16px, 3vw, 18px);
+            cursor: pointer; 
+            margin: 5px;
+            display: none;
+            min-width: 120px;
+        }
+        #nextBtn:hover, #solveBtn:hover { 
+            background: #7ff;
+        }
+        #historyPanel {
+            background: #222;
+            border-radius: 8px;
+            /* padding: 15px; */
+            margin: 20px auto;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .attempt {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 10px;
+            border-bottom: 1px solid #444;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .attempt:last-child {
+            border-bottom: none;
+        }
+
+        .attempt-circles {
+            display: flex;
+            gap: 5px;
+        }
+
+        .attempt-circle {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 1px solid #0008;
+        }
+
+        .feedback-dots {
+            display: flex;
+            gap: 5px;
+            margin-left: auto;
+        }
+
+        .feedback-dot {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            border: 1px solid #fff4;
+        }
+
+        .feedback-dot.correct-place {
+            background: #0f0;
+        }
+
+        .feedback-dot.correct-wrong-place {
+            background: #ff0;
+        }
+
+        .feedback-dot.wrong {
+            background: #444;
+        }
+
+        .legend {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            padding: 10px;
+            border-bottom: 1px solid #444;
+            font-size: 14px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        .victory-modal {
+            background: #222;
+            border: 3px solid #0ff;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            max-width: 500px;
+            margin: 20px;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        .victory-title {
+            font-size: clamp(24px, 5vw, 32px);
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, #0ff, #f0f);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: bold;
+        }
+        
+        .victory-message {
+            font-size: clamp(18px, 4vw, 24px);
+            margin-bottom: 30px;
+            color: #fff;
+            line-height: 1.4;
+        }
+        
+        .victory-btn {
+            padding: 15px 30px;
+            background: linear-gradient(45deg, #0ff, #f0f);
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .victory-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 255, 0.4);
+        }
+
+        @media (max-width: 600px) {
+            #container {
+                gap: 10px;
+            }
+            .circleBox, .slots {
+                width: 100%;
+                max-width: none;
+            }
+            .circle {
+                width: 40px;
+                height: 40px;
+            }
+            .circle canvas {
+                width: 40px;
+                height: 40px;
+            }
+            .slot {
+                width: 40px;
+                height: 40px;
+            }
+            .slot canvas {
+                width: 40px;
+                height: 40px;
+            }
+            canvas {
+                width: 100%;
+                max-height: 50vh;
+            }
+            .attempt {
+                flex-wrap: wrap;
+            }
+            .feedback-dots {
+                margin-left: 0;
+                margin-top: 5px;
+            }
+            .attempt-circle {
+                width: 15px;
+                height: 15px;
+            }
+            .feedback-dot {
+                width: 8px;
+                height: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div style="display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 800px; margin-bottom: 20px;">
+  <a href="index.html">
+    <img src="logo_sub.png" alt="Yay! Yay! Yay! Yay!" style="width: 100%;">
+  </a>
+</div>
+
+<div id="container">
+  <div class="circleBox" id="circleBox"></div>
+  <div class="slots" id="slots"></div>
+</div>
+
+<div style="position: relative; display: inline-block;">
+    <canvas id="canvas" width="400" height="350"></canvas>
+    <div id="audioToggle" class="audio-toggle" title="Toggle Audio">🔊</div>
+</div>
+
+<div id="historyPanel">
+  <div class="legend">
+    <div class="legend-item">
+      <div class="feedback-dot correct-place"></div>
+      <span>Correct circle</span>
+    </div>
+    <div class="legend-item">
+      <div class="feedback-dot wrong"></div>
+      <span>Wrong circle</span>
+    </div>
+  </div>
+  <div id="attemptsHistory"></div>
+</div>
+
+<div id="message">Correct!</div>
+<div>
+  <button id="nextBtn">Next Level</button>
+  <button id="solveBtn">Show Solution</button>
+</div>
+
+<script>
+    //--- LEVEL DATA
+const levels = [
+  {
+    "name": "Ellipse",
+    "target": [
+      { "id": "c1", "color": "#FFEB3B", "r": 80, "f": 1, "p": 0 },
+      { "id": "c2", "color": "#FF3BE7", "r": 40, "f": -1, "p": 1.2 }
+    ],
+    "decoys": [
+      { "id": "d1", "color": "#00E5FF", "r": 60, "f": 3, "p": 0.8 },
+      { "id": "d2", "color": "#7C4DFF", "r": 30, "f": 2, "p": 1.57 }
+    ]
+  },
+  {
+    "name": "Figure Eight",
+    "target": [
+      { "id": "c1", "color": "#FF9100", "r": 70, "f": 1, "p": 0 },
+      { "id": "c2", "color": "#B0BEC5", "r": 30, "f": 2, "p": 1.57 }
+    ],
+    "decoys": [
+      { "id": "d1", "color": "#C158DC", "r": 40, "f": -3, "p": 1.3 },
+      { "id": "d2", "color": "#1A237E", "r": 40, "f": 3, "p": 1.2 }
+    ]
+  },
+  {
+    "name": "Trefoil Knot",
+    "target": [
+      { "id": "c1", "color": "#FFEB3B", "r": 70, "f": 1, "p": 0 },
+      { "id": "c2", "color": "#FF3BE7", "r": 40, "f": 3, "p": 1.2 },
+      { "id": "c3", "color": "#00E5FF", "r": 20, "f": -2, "p": 0.6 }
+    ],
+    "decoys": [
+      { "id": "d1", "color": "#7C4DFF", "r": 50, "f": -4, "p": 2.0 },
+      { "id": "d2", "color": "##FF9100", "r": 15, "f": 3, "p": 0.5 }
+    ]
+  },
+  {
+    "name": "Heart",
+    "target": [
+      { "id": "c1", "color": "#B0BEC5", "r": 60, "f": 1, "p": 0 },
+      { "id": "c2", "color": "#C158DC", "r": 30, "f": -2, "p": 1.2 },
+      { "id": "c3", "color": "#1A237E", "r": 15, "f": 3, "p": 0.5 }
+    ],
+    "decoys": [
+      { "id": "d1", "color": "#FFEB3B", "r": 40, "f": -3, "p": 1.0 },
+      { "id": "d2", "color": "#FF3BE7", "r": 30, "f": -4, "p": 1.5 }
+    ]
+  },
+  {
+    "name": "Star (5-point)",
+    "target": [
+      { "id": "c1", "color": "#00E5FF", "r": 70, "f": 5, "p": 0 },
+      { "id": "c2", "color": "#7C4DFF", "r": 30, "f": -4, "p": 1.5 }
+    ],
+    "decoys": [
+      { "id": "d1", "color": "#FF9100", "r": 50, "f": 2, "p": 0.7 },
+      { "id": "d2", "color": "#B0BEC5", "r": 20, "f": -2, "p": 1.2 }
+    ]
+  },
+  {
+    "name": "Clover (3 leaves)",
+    "target": [
+      { "id": "c1", "color": "#C158DC", "r": 50, "f": 3, "p": 0 },
+      { "id": "c2", "color": "#1A237E", "r": 20, "f": -2, "p": 1.2 }
+    ],
+    "decoys": [
+      { "id": "d1", "color": "#FFEB3B", "r": 35, "f": 4, "p": 0.9 },
+      { "id": "d2", "color": "#FF3BE7", "r": 40, "f": 3, "p": 1.57 }
+    ]
+  },
+  {
+    "name": "Lissajous Curve",
+    "target": [
+      { "id": "c1", "color": "#00E5FF", "r": 60, "f": 2, "p": 0 },
+      { "id": "c2", "color": "#7C4DFF", "r": 40, "f": 3, "p": 1.57 }
+    ],
+    "decoys": [
+      { "id": "d1", "color": "#FF9100", "r": 50, "f": -1, "p": 0.8 },
+      { "id": "d2", "color": "#B0BEC5", "r": 30, "f": 2, "p": 1.5 }
+    ]
+  },
+  {
+    "name": "Infinity Symbol",
+    "target": [
+      { "id": "c1", "color": "#C158DC", "r": 70, "f": 1, "p": 0 },
+      { "id": "c2", "color": "#1A237E", "r": 30, "f": 2, "p": 1.5 }
+    ],
+    "decoys": [
+      { "id": "d1", "color": "#FFEB3B", "r": 40, "f": -3, "p": 1.2 },
+      { "id": "d2", "color": "#FF3BE7", "r": 15, "f": 4, "p": 1.0 }
+    ]
+  },
+  {
+    "name": "Waveform (Sine Stack)",
+    "target": [
+      { "id": "c26", "color": "#00E5FF", "r": 50, "f": 1, "p": 0 },
+      { "id": "c27", "color": "#7C4DFF", "r": 30, "f": 2, "p": 0.5 },
+      { "id": "c28", "color": "#FF9100", "r": 15, "f": 4, "p": 1.0 }
+    ],
+    "decoys": [
+      { "id": "d1", "color": "#B0BEC5", "r": 45, "f": -3, "p": 2.0 },
+      { "id": "d2", "color": "#C158DC", "r": 10, "f": 7, "p": 0.5 }
+    ]
+  },
+  {
+    "name": "Complex Flower",
+    "target": [
+      { "id": "c40", "color": "#1A237E", "r": 60, "f": 3, "p": 0 },
+      { "id": "c41", "color": "#FFEB3B", "r": 30, "f": 5, "p": 1.0 },
+      { "id": "c42", "color": "#FF3BE7", "r": 20, "f": -4, "p": 2.1 },
+      { "id": "c43", "color": "#00E5FF", "r": 10, "f": 7, "p": 0.5 }
+    ],
+    "decoys": [
+      { "id": "d40", "color": "#7C4DFF", "r": 25, "f": -5, "p": 1.3 },
+      { "id": "c51", "color": "#FF9100", "r": 15, "f": -5, "p": 0.8 }
+    ]
+  },
+  {
+    "name": "Celtic Knot",
+    "target": [
+      { "id": "c48", "color": "#B0BEC5", "r": 50, "f": 2, "p": 0 },
+      { "id": "c49", "color": "#C158DC", "r": 35, "f": -3, "p": 1.7 },
+      { "id": "c50", "color": "#1A237E", "r": 25, "f": 4, "p": 3.1 },
+      { "id": "c51", "color": "#FFEB3B", "r": 15, "f": -5, "p": 0.8 }
+    ],
+    "decoys": [
+      { "id": "d42", "color": "#FF3BE7", "r": 40, "f": 2, "p": 2.0 },
+      { "id": "c55", "color": "#00E5FF", "r": 15, "f": -4, "p": 0.5 }
+    ]
+  },
+  {
+    "name": "Orbit Rings",
+    "target": [
+      { "id": "c52", "color": "#7C4DFF", "r": 70, "f": 1, "p": 0 },
+      { "id": "c53", "color": "#FF9100", "r": 50, "f": -2, "p": 1.3 },
+      { "id": "c54", "color": "#B0BEC5", "r": 30, "f": 3, "p": 2.2 },
+      { "id": "c55", "color": "#C158DC", "r": 15, "f": -4, "p": 0.5 }
+    ],
+    "decoys": [
+      { "id": "d43", "color": "#1A237E", "r": 20, "f": -3, "p": 1.0 },
+      { "id": "c59", "color": "#FFEB3B", "r": 10, "f": -6, "p": 0.7 }
+    ]
+  },
+  {
+    "name": "Four Leaf Clover",
+    "target": [
+      { "id": "c56", "color": "#FF3BE7", "r": 50, "f": 4, "p": 0 },
+      { "id": "c57", "color": "#00E5FF", "r": 30, "f": -3, "p": 1.2 },
+      { "id": "c58", "color": "#7C4DFF", "r": 20, "f": 5, "p": 2.5 },
+      { "id": "c59", "color": "#FF9100", "r": 10, "f": -6, "p": 0.7 }
+    ],
+    "decoys": [
+      { "id": "d44", "color": "#B0BEC5", "r": 25, "f": 3, "p": 2.1 },
+      { "id": "c63", "color": "#C158DC", "r": 15, "f": -4, "p": 0.4 }
+    ]
+  },
+  {
+    "name": "Chaos Star",
+    "target": [
+      { "id": "c60", "color": "#1A237E", "r": 60, "f": 7, "p": 0 },
+      { "id": "c61", "color": "#FFEB3B", "r": 30, "f": -6, "p": 1.1 },
+      { "id": "c62", "color": "#FF3BE7", "r": 20, "f": 5, "p": 2.8 },
+      { "id": "c63", "color": "#00E5FF", "r": 15, "f": -4, "p": 0.4 }
+    ],
+    "decoys": [
+      { "id": "d45", "color": "#7C4DFF", "r": 25, "f": 2, "p": 1.3 },
+      { "id": "c67", "color": "#FF9100", "r": 10, "f": 4, "p": 0.9 }
+    ]
+  },
+  {
+    "name": "Wave Interference",
+    "target": [
+      { "id": "c64", "color": "#B0BEC5", "r": 55, "f": 1, "p": 0 },
+      { "id": "c65", "color": "#C158DC", "r": 35, "f": 2, "p": 1.7 },
+      { "id": "c66", "color": "#1A237E", "r": 25, "f": -3, "p": 2.9 },
+      { "id": "c67", "color": "#FFEB3B", "r": 10, "f": 4, "p": 0.9 }
+    ],
+    "decoys": [
+      { "id": "d46", "color": "#FF3BE7", "r": 20, "f": -5, "p": 0.6 },
+      { "id": "c71", "color": "#00E5FF", "r": 10, "f": -5, "p": 0.3 }
+    ]
+  },
+  {
+    "name": "Radiant Sun",
+    "target": [
+      { "id": "c68", "color": "#7C4DFF", "r": 70, "f": 8, "p": 0 },
+      { "id": "c69", "color": "#FF9100", "r": 40, "f": -7, "p": 1.4 },
+      { "id": "c70", "color": "#B0BEC5", "r": 20, "f": 6, "p": 2.3 },
+      { "id": "c71", "color": "#C158DC", "r": 10, "f": -5, "p": 0.3 }
+    ],
+    "decoys": [
+      { "id": "d47", "color": "#1A237E", "r": 25, "f": 3, "p": 2.0 },
+      { "id": "c75", "color": "#FFEB3B", "r": 10, "f": -5, "p": 0.8 }
+    ]
+  },
+  {
+    "name": "Entangled Loops",
+    "target": [
+      { "id": "c72", "color": "#FF3BE7", "r": 65, "f": 2, "p": 0 },
+      { "id": "c73", "color": "#00E5FF", "r": 40, "f": -3, "p": 1.6 },
+      { "id": "c74", "color": "#7C4DFF", "r": 20, "f": 4, "p": 2.7 },
+      { "id": "c75", "color": "#FF9100", "r": 10, "f": -5, "p": 0.8 }
+    ],
+    "decoys": [
+      { "id": "d48", "color": "#B0BEC5", "r": 30, "f": 3, "p": 1.2 },
+      { "id": "c79", "color": "#C158DC", "r": 10, "f": 4, "p": 0.5 }
+    ]
+  },
+  {
+    "name": "Quad Infinity",
+    "target": [
+      { "id": "c76", "color": "#1A237E", "r": 60, "f": 1, "p": 0 },
+      { "id": "c77", "color": "#FFEB3B", "r": 40, "f": 2, "p": 1.3 },
+      { "id": "c78", "color": "#FF3BE7", "r": 20, "f": -3, "p": 2.5 },
+      { "id": "c79", "color": "#00E5FF", "r": 10, "f": 4, "p": 0.5 }
+    ],
+    "decoys": [
+      { "id": "d49", "color": "#7C4DFF", "r": 25, "f": -2, "p": 1.5 },
+      { "id": "c75", "color": "#FF9100", "r": 10, "f": -5, "p": 0.8 }
+    ]
+  }
+];
+
+let currentLevel = 0;
+let circles = [];
+let targetPoints = [];
+let t = 0;
+let glowTimer = 0;
+let attempts = [];
+
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const box = document.getElementById("circleBox");
+const slotContainer = document.getElementById("slots");
+const message = document.getElementById("message");
+const nextBtn = document.getElementById("nextBtn");
+const solveBtn = document.getElementById("solveBtn");
+
+function loadLevel(n) {
+  const L = levels[n];
+  
+  computeTarget(L.target);
+  
+  const allCanvases = document.querySelectorAll('.circle canvas, .slot canvas');
+  allCanvases.forEach(canvas => {
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  });
+
+  box.innerHTML = "";
+  slotContainer.innerHTML = "";
+  nextBtn.style.display = "none";
+  solveBtn.style.display = "none"; 
+  canvas.style.boxShadow = "none";
+  document.getElementById('attemptsHistory').innerHTML = "";
+  attempts = [];
+  
+  stopDrawing();
+  
+  stopAllAudio();
+
+  const targetCircles = L.target;
+  
+  const decoyCircles = L.decoys.slice(0, 2);
+
+  circles = [...targetCircles, ...decoyCircles].sort(() => Math.random() - 0.5);
+
+  circles.forEach(c => {
+    const div = document.createElement("div");
+          div.className = "circle";
+      div.draggable = true;
+      div.dataset.id = c.id;
+      div.style.touchAction = "none";
+    
+    const canvas = document.createElement("canvas");
+    const isMobile = window.innerWidth <= 600;
+    canvas.width = isMobile ? 40 : 100;
+    canvas.height = isMobile ? 40 : 100;
+    div.appendChild(canvas);
+
+    const createAnimation = (targetCanvas) => {
+      const ctx = targetCanvas.getContext("2d");
+      let t = 0;
+      let animationId;
+      const isMobile = window.innerWidth <= 600;
+      const size = isMobile ? 40 : 100;
+      const center = size / 2;
+      const scale = isMobile ? 0.2 : 0.5; 
+      
+      let trail = [];
+      const trailLength = 30;
+      
+      const animate = () => {
+        ctx.clearRect(0, 0, size, size);
+        ctx.save();
+        ctx.translate(center, center);
+        
+        ctx.strokeStyle = "rgba(128,128,128,0.2)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(0, 0, c.r * scale, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        const x = c.r * scale * Math.cos(c.f * t + c.p);
+        const y = c.r * scale * Math.sin(c.f * t + c.p);
+        
+        updateCircleVolume(c.id, y);
+        
+        trail.push({ x, y, t });
+        if (trail.length > trailLength) {
+          trail.shift();
+        }
+        
+        if (trail.length > 1) {
+          ctx.strokeStyle = c.color + "60"; 
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(trail[0].x, trail[0].y);
+          for (let i = 1; i < trail.length; i++) {
+            ctx.lineTo(trail[i].x, trail[i].y);
+          }
+          ctx.stroke();
+        }
+        
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        
+        ctx.fillStyle = c.color;
+        ctx.beginPath();
+        ctx.arc(x, y, 3, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.restore();
+        t += 0.01;
+        animationId = requestAnimationFrame(animate);
+      };
+      
+      animate();
+      
+      return () => {
+        if (animationId) {
+          cancelAnimationFrame(animationId);
+        }
+      };
+    };
+
+    const stopAnimation = createAnimation(canvas);
+
+    div.addEventListener("dragstart", e => {
+      e.dataTransfer.setData("id", c.id);
+      e.dataTransfer.effectAllowed = "move";
+      const clone = canvas.cloneNode(true);
+      e.dataTransfer.setDragImage(clone, 40, 40);
+      console.log("Drag start detected");
+    });
+
+    div.addEventListener("remove", () => {
+      stopAnimation();
+    });
+
+    div.addEventListener("touchstart", e => {
+        e.preventDefault();
+        e.stopPropagation();
+        const touch = e.touches[0];
+        console.log("Touch start detected");
+        
+        // Safari-specific handling
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        console.log("Is Safari:", isSafari);
+        
+        const clone = div.cloneNode(true);
+        clone.className = "circle dragging";
+        clone.style.touchAction = "none";
+        clone.style.position = "fixed";
+        clone.style.zIndex = "10000";
+        clone.style.pointerEvents = "none";
+        clone.style.transform = "translate(-50%, -50%)";
+        document.body.appendChild(clone);
+        
+        const stopCloneAnimation = createAnimation(clone.querySelector('canvas'));
+        
+        const moveCircle = (moveEvent) => {
+            moveEvent.preventDefault();
+            moveEvent.stopPropagation();
+            const moveTouch = moveEvent.touches[0];
+            clone.style.left = moveTouch.pageX + "px";
+            clone.style.top = moveTouch.pageY + "px";
+            
+            const slots = document.querySelectorAll(".slot:not(.locked)");
+            slots.forEach(slot => slot.classList.remove("dragover"));
+            
+            const touchTarget = document.elementFromPoint(moveTouch.pageX, moveTouch.pageY);
+            const slot = touchTarget?.closest(".slot:not(.locked)");
+            if (slot) slot.classList.add("dragover");
+        };
+        
+        const endTouch = (endEvent) => {
+            endEvent.preventDefault();
+            endEvent.stopPropagation();
+            const endTouch = endEvent.changedTouches[0];
+            console.log("Touch end detected at", endTouch.pageX, endTouch.pageY);
+            const dropTarget = document.elementFromPoint(endTouch.pageX, endTouch.pageY);
+            const slot = dropTarget?.closest(".slot:not(.locked)");
+            console.log("Drop target:", dropTarget, "Slot:", slot);
+            
+            if (slot) {
+                console.log("Dropping into slot:", slot);
+                slot.innerHTML = '';
+                slot.classList.remove("dragover");
+                slot.dataset.id = c.id;
+                slot.classList.add("filled");
+                
+                const canvas = document.createElement('canvas');
+                const isMobile = window.innerWidth <= 600;
+                canvas.width = isMobile ? 40 : 100;
+                canvas.height = isMobile ? 40 : 100;
+                canvas.style.cssText = "width: 100%; height: 100%; display: block;";
+                slot.appendChild(canvas);
+                
+                const ctx = canvas.getContext("2d");
+                let t = 0;
+                
+                slot.trail = [];
+                slot.trailLength = 50;
+                
+                const animate = () => {
+                  ctx.clearRect(0, 0, canvas.width, canvas.height);
+                  ctx.save();
+                  ctx.translate(canvas.width/2, canvas.height/2);
+                  
+                  ctx.strokeStyle = "rgba(128,128,128,0.2)";
+                  ctx.lineWidth = 1;
+                  ctx.beginPath();
+                  ctx.arc(0, 0, c.r * 0.4, 0, Math.PI * 2);
+                  ctx.stroke();
+                  
+                  const x = c.r * 0.4 * Math.cos(c.f * t + c.p);
+                  const y = c.r * 0.4 * Math.sin(c.f * t + c.p);
+                  
+                  updateCircleVolume(c.id, y);
+                  
+                  slot.trail.push({ x, y, t });
+                  if (slot.trail.length > slot.trailLength) {
+                    slot.trail.shift();
+                  }
+                  
+                  if (slot.trail.length > 1) {
+                    ctx.strokeStyle = c.color + "80"; // Semi-transparent
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(slot.trail[0].x, slot.trail[0].y);
+                    for (let i = 1; i < slot.trail.length; i++) {
+                      ctx.lineTo(slot.trail[i].x, slot.trail[i].y);
+                    }
+                    ctx.stroke();
+                  }
+                  
+                  ctx.strokeStyle = "#fff";
+                  ctx.lineWidth = 2;
+                  ctx.beginPath();
+                  ctx.moveTo(0, 0);
+                  ctx.lineTo(x, y);
+                  ctx.stroke();
+                  
+                  ctx.fillStyle = c.color;
+                  ctx.beginPath();
+                  ctx.arc(x, y, 3, 0, Math.PI * 2);
+                  ctx.fill();
+                  
+                  ctx.restore();
+                  t += 0.01;
+                  slot.animationId = requestAnimationFrame(animate);
+                };
+                animate();
+                
+                slot.style.border = "2px solid #fff";
+                
+                initAudio();
+                updateCircleAudio(c, true);
+            }
+            
+            stopCloneAnimation();
+            clone.remove();
+            document.removeEventListener("touchmove", moveCircle);
+            document.removeEventListener("touchend", endTouch);
+        };
+        
+        document.addEventListener("touchmove", moveCircle);
+        document.addEventListener("touchend", endTouch);
+    });
+
+    box.appendChild(div);
+  });
+
+  const targetCount = L.target.length;
+  for (let i = 0; i < targetCount; i++) {
+    const slot = document.createElement("div");
+    slot.className = "slot";
+    
+    const placeholder = document.createElement("div");
+    placeholder.className = "placeholder";
+    placeholder.innerText = "drop";
+    slot.appendChild(placeholder);
+    
+    const canvas = document.createElement("canvas");
+    const isMobile = window.innerWidth <= 600;
+    canvas.width = isMobile ? 40 : 100;
+    canvas.height = isMobile ? 40 : 100;
+    slot.appendChild(canvas);
+    
+    slot.addEventListener("dragover", e => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        slot.classList.add("dragover");
+    });
+    
+    slot.addEventListener("dragleave", () => {
+        slot.classList.remove("dragover");
+    });
+    
+    slot.addEventListener("drop", e => {
+      e.preventDefault();
+      e.stopPropagation();
+      slot.classList.remove("dragover");
+      const id = e.dataTransfer.getData("id");
+      slot.dataset.id = id;
+      slot.classList.add("filled");
+      slot.style.border = "2px solid #fff";
+      
+      const placeholder = slot.querySelector('.placeholder');
+      if (placeholder) placeholder.style.display = 'none';
+      
+      const canvas = slot.querySelector('canvas');
+      if (canvas) canvas.style.display = 'block';
+      
+      const circle = circles.find(c => c.id === id);
+      if (circle) {
+        const ctx = canvas.getContext("2d");
+        let t = 0;
+        
+        slot.trail = [];
+        slot.trailLength = 50; // Number of trail points to keep
+        
+        const animate = () => {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.save();
+          ctx.translate(canvas.width/2, canvas.height/2);
+          
+          // Draw orbit path
+          ctx.strokeStyle = "rgba(128,128,128,0.2)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(0, 0, circle.r * 0.4, 0, Math.PI * 2);
+          ctx.stroke();
+          
+          // Draw moving point and connecting line
+          const x = circle.r * 0.4 * Math.cos(circle.f * t + circle.p);
+          const y = circle.r * 0.4 * Math.sin(circle.f * t + circle.p);
+          
+          slot.trail.push({ x, y, t });
+          if (slot.trail.length > slot.trailLength) {
+            slot.trail.shift();
+          }
+          
+          // Draw trail
+          if (slot.trail.length > 1) {
+            ctx.strokeStyle = circle.color + "80"; // Semi-transparent
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(slot.trail[0].x, slot.trail[0].y);
+            for (let i = 1; i < slot.trail.length; i++) {
+              ctx.lineTo(slot.trail[i].x, slot.trail[i].y);
+            }
+            ctx.stroke();
+          }
+          
+          ctx.strokeStyle = "#fff";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(x, y);
+          ctx.stroke();
+          
+          // Draw moving point
+          ctx.fillStyle = circle.color;
+          ctx.beginPath();
+          ctx.arc(x, y, 3, 0, Math.PI * 2);
+          ctx.fill();
+          
+          ctx.restore();
+          t += 0.01;
+          slot.animationId = requestAnimationFrame(animate);
+        };
+        animate();
+      }
+    });
+    
+    slotContainer.appendChild(slot);
+  }
+  
+  const buttonContainer = document.createElement("div");
+  buttonContainer.id = "buttonContainer";
+  buttonContainer.style.cssText = "display: flex; justify-content: center; margin: 10px; width: 100%;";
+  
+  const checkBtn = document.createElement("button");
+  checkBtn.id = "checkBtn";
+  checkBtn.innerText = "Check Solution";
+  checkBtn.style.cssText = "padding: 10px 20px; background: #0ff; color: #000; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; width: 100%; max-width: 800px; touch-action: manipulation;";
+  
+  checkBtn.addEventListener("click", checkAttempt);
+  checkBtn.addEventListener("touchend", (e) => {
+    e.preventDefault();
+    checkAttempt();
+  });
+  
+  buttonContainer.appendChild(checkBtn);
+  
+
+  
+  slotContainer.appendChild(buttonContainer);
+
+  const audioToggle = document.getElementById('audioToggle');
+  if (audioToggle) {
+    audioToggle.addEventListener("click", (e) => {
+      e.stopPropagation(); 
+      initAudio();
+      
+      window.audioEnabled = !window.audioEnabled;
+      if (window.audioEnabled) {
+        audioToggle.textContent = '🔊';
+        audioToggle.classList.remove('muted');
+        audioToggle.title = 'Mute Audio';
+      } else {
+        audioToggle.textContent = '🔇';
+        audioToggle.classList.add('muted');
+        audioToggle.title = 'Unmute Audio';
+        stopAllAudio();
+      }
+    });
+    
+    audioToggle.addEventListener("touchend", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      initAudio();
+      
+      window.audioEnabled = !window.audioEnabled;
+      if (window.audioEnabled) {
+        audioToggle.textContent = '🔊';
+        audioToggle.classList.remove('muted');
+        audioToggle.title = 'Mute Audio';
+      } else {
+        audioToggle.textContent = '🔇';
+        audioToggle.classList.add('muted');
+        audioToggle.title = 'Unmute Audio';
+        stopAllAudio();
+      }
+    });
+  }
+
+  showMessage(`Level: ${L.name}`);
+}
+
+function computeTarget(target) {
+  targetPoints = [];
+  for (let step = 0; step < 300; step++) {
+    let tt = (step / 300) * Math.PI * 2;
+    let pos = { x: 0, y: 0 };
+    target.forEach(c => {
+      pos.x += c.r * Math.cos(c.f * tt + c.p);
+      pos.y += c.r * Math.sin(c.f * tt + c.p);
+    });
+    targetPoints.push(pos);
+  }
+}
+
+function checkAttempt() {
+  try {
+
+    const activeSlots = Array.from(slotContainer.querySelectorAll(".slot"));
+    const activeIDs = activeSlots.map(s => s.dataset.id).filter(id => id); // Get filled slots
+    
+
+    const targetCount = levels[currentLevel].target.length;
+
+    
+    if (activeIDs.length !== targetCount) {
+      showMessage(`Fill all ${targetCount} slots to check your solution`);
+      return;
+    }
+
+  startDrawing();
+  
+  initAudio();
+  const activeCircles = activeIDs.map(id => circles.find(c => c.id === id));
+  updateAllAudio(activeCircles);
+
+  const targetIDs = levels[currentLevel].target.map(c => c.id);
+  let correctCircles = 0;
+  
+  activeIDs.forEach(id => {
+    if (targetIDs.includes(id)) {
+      correctCircles++;
+    }
+  });
+  
+  const hasAllTargetCircles = targetIDs.every(targetID => activeIDs.includes(targetID));
+
+  
+  const attempt = {
+    circles: activeIDs.map(id => circles.find(c => c.id === id)),
+    feedback: {
+      correctCircles,
+      wrong: targetCount - correctCircles
+    }
+  };
+  attempts.push(attempt);
+  
+  const historyDiv = document.getElementById('attemptsHistory');
+  const attemptDiv = document.createElement('div');
+  attemptDiv.className = 'attempt';
+
+  const circlesDiv = document.createElement('div');
+  circlesDiv.className = 'attempt-circles';
+  attempt.circles.forEach(circle => {
+    const circleDiv = document.createElement('div');
+    circleDiv.className = 'attempt-circle';
+    circleDiv.style.background = circle.color;
+    circlesDiv.appendChild(circleDiv);
+  });
+  attemptDiv.appendChild(circlesDiv);
+
+  const feedbackDiv = document.createElement('div');
+  feedbackDiv.className = 'feedback-dots';
+  
+  for (let i = 0; i < attempt.feedback.correctCircles; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'feedback-dot correct-place';
+    feedbackDiv.appendChild(dot);
+  }
+  
+  for (let i = 0; i < attempt.feedback.wrong; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'feedback-dot wrong';
+    feedbackDiv.appendChild(dot);
+  }
+  
+  attemptDiv.appendChild(feedbackDiv);
+  historyDiv.insertBefore(attemptDiv, historyDiv.firstChild);
+
+  showMessage(`Attempt ${attempts.length}: ${correctCircles} correct circles`);
+  
+
+  
+  if (correctCircles !== targetCount || !hasAllTargetCircles) {
+
+    const buttonContainer = document.getElementById('buttonContainer');
+    const checkBtn = document.getElementById('checkBtn');
+    if (buttonContainer && checkBtn) {
+      const tryAgainBtn = document.createElement("button");
+      tryAgainBtn.id = "tryAgainBtn";
+      tryAgainBtn.innerText = "Try Again";
+      tryAgainBtn.style.cssText = "padding: 10px 20px; background: #f44; color: #000; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; width: 100%; max-width: 800px;";
+      
+      const handleTryAgain = () => {
+        activeSlots.forEach(slot => {
+          if (slot.animationId) {
+            cancelAnimationFrame(slot.animationId);
+            slot.animationId = null;
+          }
+          
+          slot.innerHTML = '';
+          slot.classList.remove('filled');
+          slot.classList.remove('locked');
+          slot.style.border = '2px dashed #555';
+          
+          const placeholder = document.createElement("div");
+          placeholder.className = "placeholder";
+          placeholder.innerText = "drop";
+          slot.appendChild(placeholder);
+          
+          const canvas = document.createElement("canvas");
+          const isMobile = window.innerWidth <= 600;
+          canvas.width = isMobile ? 40 : 100;
+          canvas.height = isMobile ? 40 : 100;
+          slot.appendChild(canvas);
+        });
+        
+        stopDrawing();
+        
+        stopAllAudio();
+        
+        const newCheckBtn = document.createElement("button");
+        newCheckBtn.id = "checkBtn";
+        newCheckBtn.innerText = "Check Solution";
+        newCheckBtn.style.cssText = "padding: 10px 20px; background: #0ff; color: #000; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; width: 100%; max-width: 800px; touch-action: manipulation;";
+        
+        newCheckBtn.addEventListener("click", checkAttempt);
+        newCheckBtn.addEventListener("touchend", (e) => {
+          e.preventDefault();
+          checkAttempt();
+        });
+        
+        buttonContainer.replaceChild(newCheckBtn, tryAgainBtn);
+      };
+      
+      tryAgainBtn.addEventListener("click", handleTryAgain);
+      tryAgainBtn.addEventListener("touchend", (e) => {
+        e.preventDefault();
+        handleTryAgain();
+      });
+      
+      checkBtn.style.transition = "opacity 0.3s";
+      checkBtn.style.opacity = "0";
+      setTimeout(() => {
+        buttonContainer.replaceChild(tryAgainBtn, checkBtn);
+      }, 300);
+      
+      // Lock all slots
+      document.querySelectorAll('.slot').forEach(slot => {
+        slot.classList.add('locked');
+      });
+    }
+  }
+  
+  if (correctCircles === targetCount && hasAllTargetCircles) {
+
+    triggerVictory();
+  } else {
+
+  }
+  } catch (error) {
+    console.error('Error in checkAttempt:', error);
+    showMessage('An error occurred while checking your solution');
+  }
+}
+
+function triggerVictory() {
+  showMessage("🎉 Correct!");
+  
+  if (currentLevel === levels.length - 1) {
+    showVictoryModal();
+  } else {
+    // Replace check button with next button
+    const buttonContainer = document.getElementById('buttonContainer');
+    const checkBtn = document.getElementById('checkBtn');
+    if (buttonContainer && checkBtn) {
+      const nextBtn = document.createElement("button");
+      nextBtn.innerText = "Next Level";
+      nextBtn.style.cssText = "padding: 10px 20px; background: #0ff; color: #000; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; width: 100%; max-width: 800px;";
+      const handleNextLevel = () => {
+        currentLevel++;
+        loadLevel(currentLevel);
+      };
+      
+      nextBtn.addEventListener("click", handleNextLevel);
+      nextBtn.addEventListener("touchend", (e) => {
+        e.preventDefault();
+        handleNextLevel();
+      });
+      
+      checkBtn.style.transition = "opacity 0.3s";
+      checkBtn.style.opacity = "0";
+      setTimeout(() => {
+        buttonContainer.replaceChild(nextBtn, checkBtn);
+      }, 300);
+    }
+  }
+  
+  solveBtn.style.display = "none"; 
+  glowTimer = 120; 
+}
+
+nextBtn.addEventListener("click", () => {
+  currentLevel++;
+  if (currentLevel >= levels.length) currentLevel = 0;
+  loadLevel(currentLevel);
+});
+
+solveBtn.addEventListener("click", () => {
+  const target = levels[currentLevel].target;
+  const slots = slotContainer.querySelectorAll(".slot");
+  slots.forEach((s, i) => {
+    s.dataset.id = target[i].id;
+    s.innerText = target[i].id;
+    s.style.border = "2px solid #fff";
+  });
+  triggerVictory();
+});
+
+function showMessage(txt) {
+  message.innerText = txt;
+  message.style.opacity = txt ? 1 : 0;
+}
+
+// ---------------- DRAW LOOP ----------------
+function drawTargetShape() {
+  ctx.clearRect(0, 0, 400, 350);
+  ctx.save();
+  ctx.translate(200, 175);
+
+  // Target outline
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(targetPoints[0].x, targetPoints[0].y);
+  targetPoints.forEach(p => ctx.lineTo(p.x, p.y));
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function draw() {
+  if (!isDrawing) {
+    drawTargetShape();
+    return;
+  }
+  
+  if (typeof window.animationTime === 'undefined') {
+    window.animationTime = 0;
+  }
+  const t = window.animationTime;
+
+  ctx.clearRect(0, 0, 400, 350);
+  ctx.save();
+  ctx.translate(200, 175);
+
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(targetPoints[0].x, targetPoints[0].y);
+  targetPoints.forEach(p => ctx.lineTo(p.x, p.y));
+  ctx.stroke();
+
+  const active = [];
+  slotContainer.querySelectorAll(".slot").forEach(s => {
+    if (s.dataset.id) {
+      const c = circles.find(cc => cc.id === s.dataset.id);
+      if (c) active.push(c);
+    }
+  });
+
+  if (!window.mainTrail) {
+    window.mainTrail = [];
+    window.mainTrailLength = 200; // Longer trail for main canvas
+  }
+  
+  let pos = { x: 0, y: 0 };
+  active.forEach(c => {
+    ctx.strokeStyle = "rgba(128,128,128,0.2)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, c.r, 0, Math.PI * 2);
+    ctx.stroke();
+
+    const next = { x: pos.x + c.r * Math.cos(c.f * t + c.p),
+                   y: pos.y + c.r * Math.sin(c.f * t + c.p) };
+    
+    updateCircleVolume(c.id, next.y);
+    
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+    ctx.lineTo(next.x, next.y);
+    ctx.stroke();
+
+    ctx.fillStyle = c.color;
+    ctx.beginPath();
+    ctx.arc(next.x, next.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    pos = next;
+  });
+  
+  window.mainTrail.push({ x: pos.x, y: pos.y, t });
+  if (window.mainTrail.length > window.mainTrailLength) {
+    window.mainTrail.shift();
+  }
+  
+  if (window.mainTrail.length > 1) {
+    const targetIDs = levels[currentLevel].target.map(c => c.id);
+    const activeIDs = active.map(c => c.id);
+    const correctCircles = activeIDs.filter(id => targetIDs.includes(id)).length;
+    const isCorrect = correctCircles === targetIDs.length;
+    
+    ctx.strokeStyle = isCorrect ? "rgba(0,255,255,0.8)" : "rgba(255,100,100,0.8)";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(window.mainTrail[0].x, window.mainTrail[0].y);
+    for (let i = 1; i < window.mainTrail.length; i++) {
+      ctx.lineTo(window.mainTrail[i].x, window.mainTrail[i].y);
+    }
+    ctx.stroke();
+  }
+
+  ctx.restore();
+  window.animationTime += 0.01;
+
+  if (glowTimer > 0) {
+    canvas.style.boxShadow = "0 0 20px 5px #0ff";
+    glowTimer--;
+    if (glowTimer === 0) canvas.style.boxShadow = "none";
+  }
+
+  drawAnimationId = requestAnimationFrame(draw);
+}
+
+let isDrawing = false;
+let drawAnimationId = null;
+
+function startDrawing() {
+  if (!isDrawing) {
+    isDrawing = true;
+    window.mainTrail = [];
+    draw();
+  }
+}
+
+function stopDrawing() {
+  isDrawing = false;
+  if (drawAnimationId) {
+    cancelAnimationFrame(drawAnimationId);
+    drawAnimationId = null;
+  }
+  window.mainTrail = [];
+  drawTargetShape();
+}
+
+function showVictoryModal() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  
+  const modal = document.createElement('div');
+  modal.className = 'victory-modal';
+  
+  modal.innerHTML = `
+    <div class="victory-title"> Congratulations! </div>
+    <div class="victory-message">
+      You've attained the Rank of<br>
+      <strong>Loop Master!</strong><br><br>
+      You've mastered the art of epicycles and can now create any shape with the power of rotating circles!
+    </div>
+    <a href="index.html" class="victory-btn">Return Home</a>
+  `;
+  
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      overlay.remove();
+    }
+  });
+}
+
+loadLevel(0);
+draw(); 
+</script>
+</body>
+</html>

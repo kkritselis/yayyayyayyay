@@ -4,9 +4,54 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Instructions - Yay! Yay! Yay! Yay!</title>
-    <link rel="stylesheet" href="css/styles.css">
     <style>
-        /* Instructions-specific styles */
+        body { 
+            background: #111; 
+            color: #fff; 
+            font-family: sans-serif; 
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            max-width: 1000px;
+            margin: 0 auto 40px auto;
+        }
+        
+        .home-btn {
+            padding: 10px 20px;
+            background: #333;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        
+        .logo {
+            width: 400px;
+            height: 40px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            font-size: clamp(24px, 5vw, 32px);
+            text-align: center;
+            margin-bottom: 30px;
+            background: linear-gradient(45deg, #0ff, #00f);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
         .step {
             background: #222;
             border-radius: 12px;
@@ -83,6 +128,11 @@
             .demo-text {
                 min-width: auto;
             }
+            
+            .logo {
+                width: 200px;
+                height: 20px;
+            }
         }
     </style>
 </head>
@@ -136,7 +186,7 @@
         
         <div class="step">
             <h2>The Gameplay</h2>
-            <p>1. <strong>Choose circles:</strong> You'll see animated previews of each circle's motion</p>
+            <p>1. <strong>Choose circles:</strong>You'll see animated previews of each circle's motion</p>
             <p>2. <strong>Drag and drop:</strong> Place the correct circles in the slots</p>
             <p>3. <strong>Check your solution:</strong> Click "Check Solution" to see how your circles combine</p>
             <p>4. <strong>Get feedback:</strong> You'll see how many circles are correct</p>
@@ -162,11 +212,11 @@
         </div>
         
         <div style="text-align: center; margin: 40px 0;">
-            <a href="game.html" class="button">🎮 Start Playing!</a>
+            <a href="game.html" style="padding: 15px 30px; background: linear-gradient(45deg, #0f0, #ff0); color: #000; text-decoration: none; border-radius: 8px; font-size: 18px; font-weight: bold;">🎮 Start Playing!</a>
         </div>
     </div>
 
-    <script type="module">
+    <script>
         const targetCanvas = document.getElementById('targetCanvas');
         const targetCtx = targetCanvas.getContext('2d');
         
@@ -290,4 +340,4 @@
         animate();
     </script>
 </body>
-</html>
+</html> 
