@@ -150,7 +150,38 @@ canvas {
     position: relative;
     overflow: hidden;
     touch-action: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
     user-select: none;
+}
+
+.slot canvas {
+    width: 100%;
+    height: 100%;
+    border: none;
+    margin: 0;
+    display: none;
+}
+
+.slot.filled canvas {
+    display: block;
+}
+
+.slot.filled .placeholder {
+    display: none;
+}
+
+.slot .placeholder {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
 }
 
 .slot.dragover:not(.locked) { 
@@ -216,6 +247,11 @@ canvas {
     }
 
     .circle, .slot {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .circle canvas, .slot canvas {
         width: 80px;
         height: 80px;
     }

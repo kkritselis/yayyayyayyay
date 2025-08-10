@@ -199,6 +199,9 @@
             
             stopDrawing();
             stopAllAudio();
+            
+            // Clear main canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             // Create circles
             circles = [...L.target, ...L.decoys.slice(0, 2)].sort(() => Math.random() - 0.5);
@@ -273,6 +276,9 @@
             }
 
             showMessage(`Level: ${L.name}`);
+            
+            // Draw the target shape
+            draw(ctx, targetPoints, circles, slotContainer, canvas);
         }
 
         function checkAttempt() {
