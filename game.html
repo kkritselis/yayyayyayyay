@@ -64,57 +64,29 @@
             border: 1px solid #0008;
         }
 
-        .feedback-dots {
-            display: flex;
-            gap: 5px;
+        .feedback-text {
             margin-left: auto;
-        }
-
-        .feedback-dot {
-            width: 15px;
-            height: 15px;
-            border-radius: 50%;
-            border: 1px solid #fff4;
-        }
-
-        .feedback-dot.correct-place {
-            background: #0f0;
-        }
-
-        .feedback-dot.wrong {
-            background: #444;
-        }
-
-        .legend {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-            padding: 10px;
-            border-bottom: 1px solid #444;
             font-size: 14px;
+            color: #fff;
+            text-align: right;
+            min-width: 150px;
         }
 
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
+
 
         @media (max-width: 600px) {
             .attempt {
                 flex-wrap: wrap;
             }
-            .feedback-dots {
+            .feedback-text {
                 margin-left: 0;
                 margin-top: 5px;
+                font-size: 12px;
+                min-width: 120px;
             }
             .attempt-circle {
                 width: 15px;
                 height: 15px;
-            }
-            .feedback-dot {
-                width: 8px;
-                height: 8px;
             }
         }
     </style>
@@ -137,16 +109,6 @@
     </div>
 
     <div id="historyPanel">
-        <div class="legend">
-            <div class="legend-item">
-                <div class="feedback-dot correct-place"></div>
-                <span>Correct circle</span>
-            </div>
-            <div class="legend-item">
-                <div class="feedback-dot wrong"></div>
-                <span>Wrong circle</span>
-            </div>
-        </div>
         <div id="attemptsHistory"></div>
     </div>
 
@@ -353,20 +315,29 @@
             });
             attemptDiv.appendChild(circlesDiv);
 
-            // Add feedback dots
+            // Add text feedback
             const feedbackDiv = document.createElement('div');
-            feedbackDiv.className = 'feedback-dots';
+            feedbackDiv.className = 'feedback-text';
             
-            for (let i = 0; i < attempt.feedback.correctCircles; i++) {
-                const dot = document.createElement('div');
-                dot.className = 'feedback-dot correct-place';
-                feedbackDiv.appendChild(dot);
-            }
+            const correctCount = attempt.feedback.correctCircles;
+            const wrongCount = attempt.feedback.wrong;
             
-            for (let i = 0; i < attempt.feedback.wrong; i++) {
-                const dot = document.createElement('div');
-                dot.className = 'feedback-dot wrong';
-                feedbackDiv.appendChild(dot);
+            if (correctCount === 1 && wrongCount === 0) {
+                feedbackDiv.textContent = '1 Circle is Correct';
+            } else if (correctCount === 0 && wrongCount === 1) {
+                feedbackDiv.textContent = '1 Circle is Wrong';
+            } else if (correctCount > 0 && wrongCount === 0) {
+                feedbackDiv.textContent = `${correctCount} Circles are Correct`;
+            } else if (correctCount === 0 && wrongCount > 0) {
+                feedbackDiv.textContent = `${wrongCount} Circles are Wrong`;
+            } else if (correctCount === 1 && wrongCount === 1) {
+                feedbackDiv.textContent = '1 Circle is Correct and 1 is Wrong';
+            } else if (correctCount === 1 && wrongCount > 1) {
+                feedbackDiv.textContent = `1 Circle is Correct and ${wrongCount} are Wrong`;
+            } else if (correctCount > 1 && wrongCount === 1) {
+                feedbackDiv.textContent = `${correctCount} Circles are Correct and 1 is Wrong`;
+            } else {
+                feedbackDiv.textContent = `${correctCount} Circles are Correct and ${wrongCount} are Wrong`;
             }
             
             attemptDiv.appendChild(feedbackDiv);
